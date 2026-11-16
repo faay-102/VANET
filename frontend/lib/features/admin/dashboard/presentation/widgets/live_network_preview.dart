@@ -1,4 +1,3 @@
-import 'package:vanet_mobile/core/theme/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
@@ -20,66 +19,110 @@ class LiveNetworkPreview extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SectionHeader(
-          title: 'Live Network',
-          actionLabel: 'View Map',
-          onActionTap: () => context.push('/emergency/route'),
+          title: 'Live Network & Fleet Simulation',
+          actionLabel: 'Open 3D View',
+          onActionTap: () => context.push('/driver/map'),
         ),
         const SizedBox(height: 10),
 
-        // Compact Map Preview Card
+        // Modern 3D Road Preview Card (Light Theme)
         Container(
-          height: 190,
+          height: 200,
           decoration: BoxDecoration(
-            color: const Color(0xFFF1F5F9),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.border),
-            boxShadow: const [
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: [
               BoxShadow(
-                color: Color.fromRGBO(0, 0, 0, 0.02),
-                blurRadius: 6,
-                offset: Offset(0, 2),
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(16),
             child: Material(
               color: Colors.transparent,
               child: InkWell(
-                onTap: () => context.push('/emergency/route'),
+                onTap: () => context.go('/simulation'),
                 child: Stack(
                   children: [
-                    // Vector Road Grid Paint
+                    // Vector Highway Grid Paint
                     CustomPaint(
-                      size: const Size(double.infinity, 190),
-                      painter: _MapRoadGridPainter(),
+                      size: const Size(double.infinity, 200),
+                      painter: _CyberRoadGridPainter(),
                     ),
 
-                    // Vehicle Nodes on Map
-                    _buildNodeMarker(top: 45, left: 60, color: AppColors.safe, label: 'V-101', icon: Icons.directions_car_rounded),
-                    _buildNodeMarker(top: 35, left: 200, color: AppColors.warning, label: 'V-203', icon: Icons.warning_rounded),
-                    _buildNodeMarker(top: 110, left: 140, color: AppColors.error, label: 'V-305', icon: Icons.gpp_bad_rounded),
-                    _buildNodeMarker(top: 95, left: 260, color: const Color(0xFF2563EB), label: 'V-404', icon: Icons.local_hospital_rounded),
+                    // 🚗 3D Stylized Vehicle Nodes on Map
+                    _build3DCarNode(
+                      top: 48,
+                      left: 60,
+                      color: const Color(0xFF0284C7),
+                      accentColor: const Color(0xFF38BDF8),
+                      label: 'V-101 (Host)',
+                      icon: Icons.directions_car_rounded,
+                      status: 'TRUSTED 94%',
+                      statusColor: AppColors.safe,
+                    ),
+                    _build3DCarNode(
+                      top: 36,
+                      left: 195,
+                      color: const Color(0xFFD97706),
+                      accentColor: const Color(0xFFFBBF24),
+                      label: 'V-203 (Civ)',
+                      icon: Icons.directions_car_rounded,
+                      status: 'NORMAL 88%',
+                      statusColor: const Color(0xFFFBBF24),
+                    ),
+                    _build3DCarNode(
+                      top: 108,
+                      left: 130,
+                      color: const Color(0xFF991B1B),
+                      accentColor: const Color(0xFFEF4444),
+                      label: 'V-305 (Rogue)',
+                      icon: Icons.warning_rounded,
+                      status: 'SYBIL ATTACK',
+                      statusColor: AppColors.error,
+                      isMalicious: true,
+                    ),
+                    _build3DCarNode(
+                      top: 96,
+                      left: 260,
+                      color: const Color(0xFF1D4ED8),
+                      accentColor: const Color(0xFF60A5FA),
+                      label: 'AMB-404',
+                      icon: Icons.local_hospital_rounded,
+                      status: 'PRIORITY GRANTED',
+                      statusColor: const Color(0xFF38BDF8),
+                      isEmergency: true,
+                    ),
 
-                    // Floating Tooltip
+                    // Floating Tooltip Badge
                     Positioned(
                       bottom: 8,
                       right: 8,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.92),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: AppColors.border),
+                          color: const Color(0xFF1E293B).withValues(alpha: 0.92),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.white24),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.touch_app_outlined, size: 12, color: AppColors.textSecondary),
-                            const SizedBox(width: 4),
+                            const Icon(Icons.open_in_full_rounded,
+                                size: 12, color: Color(0xFF38BDF8)),
+                            const SizedBox(width: 5),
                             Text(
-                              'Tap map to expand',
-                              style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.w500, color: AppColors.textSecondary),
+                              'Tap to launch Full 3D Simulator',
+                              style: GoogleFonts.outfit(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
                             ),
                           ],
                         ),
@@ -100,20 +143,25 @@ class LiveNetworkPreview extends StatelessWidget {
           children: [
             _buildLegendDot('Trusted', AppColors.safe),
             _buildLegendDot('Suspicious', AppColors.warning),
-            _buildLegendDot('Malicious', AppColors.error),
-            _buildLegendDot('Emergency', const Color(0xFF2563EB)),
+            _buildLegendDot('Malicious Flagged', AppColors.error),
+            _buildLegendDot('Emergency Corridor', const Color(0xFF2563EB)),
           ],
         ),
       ],
     );
   }
 
-  Widget _buildNodeMarker({
+  Widget _build3DCarNode({
     required double top,
     required double left,
     required Color color,
+    required Color accentColor,
     required String label,
     required IconData icon,
+    required String status,
+    required Color statusColor,
+    bool isEmergency = false,
+    bool isMalicious = false,
   }) {
     return Positioned(
       top: top,
@@ -121,35 +169,65 @@ class LiveNetworkPreview extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // 3D-Styled Car Avatar Box
           Container(
-            padding: const EdgeInsets.all(5),
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
             decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [color, accentColor],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(7),
+              border: Border.all(
+                color: isMalicious ? Colors.redAccent : Colors.white60,
+                width: 1,
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: color.withValues(alpha: 0.35),
-                  blurRadius: 5,
-                  offset: const Offset(0, 2),
+                  color: (isMalicious ? Colors.red : color).withValues(alpha: 0.5),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
                 ),
               ],
             ),
-            child: Icon(icon, size: 12, color: AppTheme.surface),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 12, color: Colors.white),
+                const SizedBox(width: 4),
+                Text(
+                  label,
+                  style: GoogleFonts.outfit(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 3),
+          // Status Pill
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
             decoration: BoxDecoration(
-              color: AppTheme.surface,
+              color: Colors.white,
               borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: AppColors.border, width: 0.6),
+              border: Border.all(color: statusColor.withValues(alpha: 0.6), width: 0.8),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 4,
+                ),
+              ],
             ),
             child: Text(
-              label,
+              status,
               style: GoogleFonts.outfit(
-                fontSize: 9,
+                fontSize: 8.5,
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: statusColor,
               ),
             ),
           ),
@@ -168,6 +246,12 @@ class LiveNetworkPreview extends StatelessWidget {
           decoration: BoxDecoration(
             color: color,
             shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.6),
+                blurRadius: 4,
+              ),
+            ],
           ),
         ),
         const SizedBox(width: 5),
@@ -184,40 +268,71 @@ class LiveNetworkPreview extends StatelessWidget {
   }
 }
 
-class _MapRoadGridPainter extends CustomPainter {
+class _CyberRoadGridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final roadPaint = Paint()
+    // 1. Grid Background
+    final gridPaint = Paint()
+      ..color = const Color(0xFFF1F5F9)
+      ..strokeWidth = 1.0;
+
+    for (double x = 0; x < size.width; x += 30) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
+    }
+    for (double y = 0; y < size.height; y += 30) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    }
+
+    // 2. High-Tech Multi-lane Roads (Clean Light Theme)
+    final roadBasePaint = Paint()
+      ..color = const Color(0xFFE2E8F0)
+      ..strokeWidth = 26
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final roadBorderPaint = Paint()
       ..color = const Color(0xFFCBD5E1)
-      ..strokeWidth = 5
+      ..strokeWidth = 28
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
     final activeRoutePaint = Paint()
-      ..color = const Color(0xFF2563EB)
-      ..strokeWidth = 3.5
+      ..color = const Color(0xFF10B981).withValues(alpha: 0.85) // Emergency Green Corridor
+      ..strokeWidth = 6
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
-    final gridPath1 = Path()
-      ..moveTo(20, 45)
-      ..lineTo(size.width * 0.45, 45)
-      ..lineTo(size.width * 0.65, 115)
-      ..lineTo(size.width - 20, 115);
+    final dashedCenterPaint = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
 
-    final gridPath2 = Path()
-      ..moveTo(size.width * 0.45, 45)
-      ..lineTo(size.width * 0.45, size.height - 25)
-      ..lineTo(size.width * 0.85, size.height - 25);
+    final path1 = Path()
+      ..moveTo(20, 60)
+      ..lineTo(size.width * 0.45, 60)
+      ..lineTo(size.width * 0.68, 130)
+      ..lineTo(size.width - 20, 130);
 
-    canvas.drawPath(gridPath1, roadPaint);
-    canvas.drawPath(gridPath2, roadPaint);
+    final path2 = Path()
+      ..moveTo(size.width * 0.45, 60)
+      ..lineTo(size.width * 0.45, size.height - 20)
+      ..lineTo(size.width * 0.85, size.height - 20);
 
+    // Draw borders & asphalt
+    canvas.drawPath(path1, roadBorderPaint);
+    canvas.drawPath(path1, roadBasePaint);
+    canvas.drawPath(path1, dashedCenterPaint);
+
+    canvas.drawPath(path2, roadBorderPaint);
+    canvas.drawPath(path2, roadBasePaint);
+    canvas.drawPath(path2, dashedCenterPaint);
+
+    // Active Detour Priority Route
     final activePath = Path()
-      ..moveTo(60, 45)
-      ..lineTo(size.width * 0.45, 45)
-      ..lineTo(size.width * 0.65, 115)
-      ..lineTo(size.width * 0.75, 115);
+      ..moveTo(60, 60)
+      ..lineTo(size.width * 0.45, 60)
+      ..lineTo(size.width * 0.68, 130)
+      ..lineTo(size.width * 0.78, 130);
 
     canvas.drawPath(activePath, activeRoutePaint);
   }

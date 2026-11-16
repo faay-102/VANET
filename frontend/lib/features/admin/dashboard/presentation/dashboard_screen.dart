@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:vanet_mobile/core/theme/colors.dart';
+import 'package:vanet_mobile/features/shared/authentication/presentation/auth_provider.dart';
 import 'package:vanet_mobile/features/admin/dashboard/presentation/dashboard_provider.dart';
 import 'package:vanet_mobile/features/admin/dashboard/presentation/widgets/network_risk_card.dart';
 import 'package:vanet_mobile/features/admin/dashboard/presentation/widgets/metric_card.dart';
@@ -41,9 +42,13 @@ class DashboardScreen extends ConsumerWidget {
       backgroundColor: AppColors.background,
       drawer: const AppDrawer(),
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 0,
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1, color: Color(0xFFE2E8F0)),
+        ),
         leading: Builder(
           builder: (ctx) => IconButton(
             icon: const Icon(Icons.menu_rounded, color: AppColors.textPrimary, size: 24),
@@ -68,12 +73,42 @@ class DashboardScreen extends ConsumerWidget {
               style: GoogleFonts.outfit(
                 fontSize: 17,
                 fontWeight: FontWeight.bold,
-                color: AppColors.primary,
+                color: const Color(0xFF0F172A),
               ),
             ),
           ],
         ),
         actions: [
+          // 🚗 Quick Switch to Highway Simulation
+          InkWell(
+            onTap: () => context.go('/simulation'),
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              margin: const EdgeInsets.symmetric(vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0284C7).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFF0284C7), width: 1),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.directions_car_rounded, size: 16, color: Color(0xFF0284C7)),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Simulator',
+                    style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF0284C7),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
           Stack(
             alignment: Alignment.center,
             children: [
@@ -172,10 +207,10 @@ class DashboardScreen extends ConsumerWidget {
                   ],
                 ),
 
-              const SizedBox(height: 22),
+                const SizedBox(height: 22),
 
-              // 3. LIVE NETWORK PREVIEW
-              LiveNetworkPreview(vehicles: state.vehicles),
+                // 3. LIVE NETWORK PREVIEW
+                LiveNetworkPreview(vehicles: state.vehicles),
 
               const SizedBox(height: 22),
 

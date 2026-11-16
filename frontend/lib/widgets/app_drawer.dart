@@ -104,72 +104,89 @@ class AppDrawer extends ConsumerWidget {
               ),
             ),
 
-            // 🔹 Navigation Links List (Role-Specific)
+            // 🔹 Navigation Links List (Unified & Simple for Evaluators)
             Expanded(
               child: ListView(
                 physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
                 children: [
-                  if (isAdmin) ...[
-                    // 🛡️ ADMIN SPECIFIC DRAWER OPTIONS
-                    _buildDrawerItem(
-                      context: context,
-                      icon: Icons.alt_route_rounded,
-                      title: 'Routes & Detours',
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.push('/emergency/route');
-                      },
+                  _buildDrawerItem(
+                    context: context,
+                    icon: Icons.dashboard_rounded,
+                    title: 'Dashboard',
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.go('/dashboard');
+                    },
+                  ),
+                  const Divider(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 12, bottom: 6),
+                    child: Text(
+                      'MENU',
+                      style: GoogleFonts.outfit(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textSecondary,
+                        letterSpacing: 0.6,
+                      ),
                     ),
-                    _buildDrawerItem(
-                      context: context,
-                      icon: Icons.psychology_outlined,
-                      title: 'AI Explanations (SHAP & LIME)',
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.push('/vehicles/V1023/explanation');
-                      },
-                    ),
-                    _buildDrawerItem(
-                      context: context,
-                      icon: Icons.shield_outlined,
-                      title: 'Dynamic Trust Engine',
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.push('/trust');
-                      },
-                    ),
-                  ] else ...[
-                    // 🚗 USER / DRIVER SPECIFIC DRAWER OPTIONS
-                    _buildDrawerItem(
-                      context: context,
-                      icon: Icons.alt_route_rounded,
-                      title: 'Emergency Priority Routes',
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.push('/emergency/route');
-                      },
-                    ),
-                    _buildDrawerItem(
-                      context: context,
-                      icon: Icons.history_rounded,
-                      title: 'My Trust Score History',
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.push('/trust/history/V101');
-                      },
-                    ),
-                    _buildDrawerItem(
-                      context: context,
-                      icon: Icons.warning_amber_rounded,
-                      title: 'Accident Advisory',
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.push('/alerts/accident');
-                      },
-                    ),
-                  ],
-
+                  ),
+                  _buildDrawerItem(
+                    context: context,
+                    icon: Icons.shield_rounded,
+                    title: 'AI Detection',
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.push('/vehicles');
+                    },
+                  ),
+                  _buildDrawerItem(
+                    context: context,
+                    icon: Icons.psychology_rounded,
+                    title: 'Explainable AI',
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.push('/vehicles/V1023/explanation');
+                    },
+                  ),
+                  _buildDrawerItem(
+                    context: context,
+                    icon: Icons.verified_user_rounded,
+                    title: 'Trust Management',
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.push('/trust');
+                    },
+                  ),
+                  _buildDrawerItem(
+                    context: context,
+                    icon: Icons.alt_route_rounded,
+                    title: 'Emergency Routes',
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.push('/emergency/route');
+                    },
+                  ),
+                  _buildDrawerItem(
+                    context: context,
+                    icon: Icons.directions_car_rounded,
+                    title: 'Highway Simulator',
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.push('/simulation');
+                    },
+                  ),
+                  _buildDrawerItem(
+                    context: context,
+                    icon: Icons.pie_chart_rounded,
+                    title: 'Security Reports',
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.push('/reports');
+                    },
+                  ),
+                  const Divider(height: 16),
                   _buildDrawerItem(
                     context: context,
                     icon: Icons.person_outline_rounded,
@@ -177,27 +194,6 @@ class AppDrawer extends ConsumerWidget {
                     onTap: () {
                       Navigator.pop(context);
                       context.push('/profile');
-                    },
-                  ),
-                  const Divider(height: 20),
-                  // 🔹 FYP Demo Role Switcher
-                  ListTile(
-                    dense: true,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    leading: const Icon(Icons.directions_car_rounded, color: Color(0xFF2563EB), size: 20),
-                    title: Text(
-                      'Switch to Driver OBU App',
-                      style: GoogleFonts.outfit(
-                        color: const Color(0xFF2563EB),
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    subtitle: Text('Demo switch to Personal Safety Cockpit', style: GoogleFonts.outfit(fontSize: 10.5, color: AppTheme.textSecondary)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      ref.read(authProvider.notifier).login('driver@vanet.com', 'driver123', role: 'Driver');
-                      context.go('/driver/dashboard');
                     },
                   ),
                 ],

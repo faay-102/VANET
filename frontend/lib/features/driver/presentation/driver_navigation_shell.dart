@@ -10,10 +10,12 @@ import 'package:vanet_mobile/core/utils/responsive.dart';
 
 class DriverNavigationShell extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
+  final String? currentPath;
 
   const DriverNavigationShell({
     super.key,
     required this.navigationShell,
+    this.currentPath,
   });
 
   @override
@@ -87,83 +89,189 @@ class DriverNavigationShell extends ConsumerWidget {
     );
 
     if (isWide) {
+      final currentLoc = currentPath ?? '';
+
       return Scaffold(
-        backgroundColor: AppTheme.background,
-        appBar: appBar,
-        drawer: _buildDriverDrawer(context, ref, driverState),
+        backgroundColor: Colors.white,
         body: Row(
           children: [
+            // Left Clean Module Sidebar
             Container(
+              width: 250,
               decoration: const BoxDecoration(
-                color: AppTheme.surface,
-                border: Border(right: BorderSide(color: AppTheme.border, width: 1.0)),
+                color: Colors.white,
+                border: Border(right: BorderSide(color: Color(0xFFE2E8F0), width: 1.0)),
               ),
-              child: NavigationRail(
-                selectedIndex: navigationShell.currentIndex,
-                backgroundColor: AppTheme.surface,
-                minWidth: 72,
-                minExtendedWidth: 200,
-                elevation: 0,
-                indicatorColor: AppTheme.primary.withValues(alpha: 0.16),
-                labelType: NavigationRailLabelType.all,
-                selectedLabelTextStyle: GoogleFonts.outfit(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.primary,
-                ),
-                unselectedLabelTextStyle: GoogleFonts.outfit(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: AppTheme.textSecondary,
-                ),
-                onDestinationSelected: (index) {
-                  navigationShell.goBranch(
-                    index,
-                    initialLocation: index == navigationShell.currentIndex,
-                  );
-                },
-                leading: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16.0),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
+              child: SafeArea(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Brand Header
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0284C7).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.shield_rounded, color: Color(0xFF0284C7), size: 24),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'VANET Guard',
+                                  style: GoogleFonts.outfit(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                    color: const Color(0xFF0F172A),
+                                  ),
+                                ),
+                                Text(
+                                  'Network Security',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 11,
+                                    color: const Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: const Icon(Icons.directions_car_filled_rounded, color: AppTheme.primary, size: 24),
-                  ),
+
+                    const Divider(height: 1, color: Color(0xFFE2E8F0)),
+
+                    // Sidebar Section Title
+                    Padding(
+                      padding: const EdgeInsets.only(left: 18, top: 16, bottom: 8),
+                      child: Text(
+                        'MENU',
+                        style: GoogleFonts.outfit(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF64748B),
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ),
+
+                    // Clean List of App Navigation Items (No Numbers, Clean App Naming)
+                    Expanded(
+                      child: ListView(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        children: [
+                          _buildDriverSidebarTile(
+                            context: context,
+                            icon: Icons.grid_view_rounded,
+                            title: 'Dashboard',
+                            isActive: currentLoc == '/dashboard',
+                            onTap: () {
+                              ref.read(authProvider.notifier).login('admin@vanet.com', 'admin123', role: 'Admin');
+                              context.go('/dashboard');
+                            },
+                          ),
+                          const SizedBox(height: 4),
+                          _buildDriverSidebarTile(
+                            context: context,
+                            icon: Icons.shield_outlined,
+                            title: 'AI Detection',
+                            isActive: currentLoc == '/vehicles',
+                            onTap: () => context.push('/vehicles'),
+                          ),
+                          const SizedBox(height: 4),
+                          _buildDriverSidebarTile(
+                            context: context,
+                            icon: Icons.psychology_outlined,
+                            title: 'Explainable AI',
+                            isActive: currentLoc.contains('explanation'),
+                            onTap: () => context.push('/vehicles/V1023/explanation'),
+                          ),
+                          const SizedBox(height: 4),
+                          _buildDriverSidebarTile(
+                            context: context,
+                            icon: Icons.verified_user_outlined,
+                            title: 'Trust Management',
+                            isActive: currentLoc == '/trust',
+                            onTap: () => context.push('/trust'),
+                          ),
+                          const SizedBox(height: 4),
+                          _buildDriverSidebarTile(
+                            context: context,
+                            icon: Icons.alt_route_rounded,
+                            title: 'Emergency Routes',
+                            isActive: currentLoc.contains('/emergency'),
+                            onTap: () => context.push('/emergency/route'),
+                          ),
+                          const SizedBox(height: 4),
+                          _buildDriverSidebarTile(
+                            context: context,
+                            icon: Icons.directions_car_outlined,
+                            title: 'Highway Simulator',
+                            isActive: currentLoc == '/simulation' || currentLoc == '/driver/map',
+                            onTap: () => context.go('/simulation'),
+                          ),
+                          const SizedBox(height: 4),
+                          _buildDriverSidebarTile(
+                            context: context,
+                            icon: Icons.pie_chart_outline_rounded,
+                            title: 'Security Reports',
+                            isActive: currentLoc == '/reports',
+                            onTap: () => context.push('/reports'),
+                          ),
+                          const SizedBox(height: 4),
+                          _buildDriverSidebarTile(
+                            context: context,
+                            icon: Icons.notifications_none_rounded,
+                            title: 'Alerts',
+                            isActive: currentLoc == '/alerts',
+                            onTap: () => context.push('/alerts'),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Clean Footer Info
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.circle, size: 8, color: Color(0xFF10B981)),
+                            const SizedBox(width: 8),
+                            Text(
+                              'OBU System Active',
+                              style: GoogleFonts.outfit(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF334155),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                destinations: const [
-                  NavigationRailDestination(
-                    icon: Icon(Icons.speed_outlined, color: AppTheme.textSecondary, size: 22),
-                    selectedIcon: Icon(Icons.speed_rounded, color: AppTheme.primary, size: 22),
-                    label: Text('HUD Cockpit'),
-                  ),
-                  NavigationRailDestination(
-                    icon: Icon(Icons.radar_outlined, color: AppTheme.textSecondary, size: 22),
-                    selectedIcon: Icon(Icons.radar_rounded, color: AppTheme.primary, size: 22),
-                    label: Text('Nearby V2V'),
-                  ),
-                  NavigationRailDestination(
-                    icon: Icon(Icons.warning_amber_outlined, color: AppTheme.textSecondary, size: 22),
-                    selectedIcon: Icon(Icons.warning_amber_rounded, color: AppTheme.warning, size: 22),
-                    label: Text('Alerts'),
-                  ),
-                  NavigationRailDestination(
-                    icon: Icon(Icons.map_outlined, color: AppTheme.textSecondary, size: 22),
-                    selectedIcon: Icon(Icons.map_rounded, color: AppTheme.primary, size: 22),
-                    label: Text('Live Map'),
-                  ),
-                ],
               ),
             ),
+
+            // Main Content Area
             Expanded(
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: Responsive.maxContentWidth),
-                  child: navigationShell,
-                ),
-              ),
+              child: navigationShell,
             ),
           ],
         ),
@@ -392,6 +500,53 @@ class DriverNavigationShell extends ConsumerWidget {
         Navigator.pop(context);
         context.push(route);
       },
+    );
+  }
+
+  Widget _buildDriverSidebarTile({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: isActive ? const Color(0xFF0284C7).withValues(alpha: 0.12) : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isActive ? const Color(0xFF0284C7).withValues(alpha: 0.25) : Colors.transparent,
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 20,
+              color: isActive ? const Color(0xFF0284C7) : const Color(0xFF64748B),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.outfit(
+                  fontSize: 12.5,
+                  fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+                  color: isActive ? const Color(0xFF0284C7) : const Color(0xFF334155),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

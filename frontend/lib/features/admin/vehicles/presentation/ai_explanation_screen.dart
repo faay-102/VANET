@@ -42,10 +42,12 @@ class _AIExplanationScreenState extends ConsumerState<AIExplanationScreen> {
         backgroundColor: AppTheme.background,
         elevation: 0,
         scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-          onPressed: () => context.pop(),
-        ),
+        leading: context.canPop()
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+                onPressed: () => context.pop(),
+              )
+            : null,
         title: Text(
           'AI Explanation',
           style: GoogleFonts.outfit(

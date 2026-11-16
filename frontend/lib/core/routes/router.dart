@@ -47,9 +47,12 @@ final _rootNavigatorKey = GlobalKey<NavigatorState>();
 // Admin Shell Keys
 final _sectionDashboardKey = GlobalKey<NavigatorState>();
 final _sectionVehiclesKey = GlobalKey<NavigatorState>();
-final _sectionAlertsKey = GlobalKey<NavigatorState>();
+final _sectionXAIKey = GlobalKey<NavigatorState>();
+final _sectionTrustKey = GlobalKey<NavigatorState>();
 final _sectionEmergencyKey = GlobalKey<NavigatorState>();
+final _sectionSimulationKey = GlobalKey<NavigatorState>();
 final _sectionReportsKey = GlobalKey<NavigatorState>();
+final _sectionAlertsKey = GlobalKey<NavigatorState>();
 
 // Driver Shell Keys
 final _driverDashboardKey = GlobalKey<NavigatorState>();
@@ -132,9 +135,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       // ==========================================
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
-          return NavigationShell(navigationShell: navigationShell);
+          return NavigationShell(
+            navigationShell: navigationShell,
+            currentPath: state.matchedLocation,
+          );
         },
         branches: [
+          // Branch 0: Dashboard
           StatefulShellBranch(
             navigatorKey: _sectionDashboardKey,
             routes: [
@@ -144,6 +151,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
+          // Branch 1: AI Detection
           StatefulShellBranch(
             navigatorKey: _sectionVehiclesKey,
             routes: [
@@ -153,15 +161,27 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
+          // Branch 2: Explainable AI
           StatefulShellBranch(
-            navigatorKey: _sectionAlertsKey,
+            navigatorKey: _sectionXAIKey,
             routes: [
               GoRoute(
-                path: '/alerts',
-                builder: (context, state) => const AlertsScreen(),
+                path: '/xai',
+                builder: (context, state) => const AIExplanationScreen(id: 'V1023'),
               ),
             ],
           ),
+          // Branch 3: Trust Management
+          StatefulShellBranch(
+            navigatorKey: _sectionTrustKey,
+            routes: [
+              GoRoute(
+                path: '/trust',
+                builder: (context, state) => const TrustManagementScreen(),
+              ),
+            ],
+          ),
+          // Branch 4: Emergency Routes
           StatefulShellBranch(
             navigatorKey: _sectionEmergencyKey,
             routes: [
@@ -171,12 +191,33 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
+          // Branch 5: Highway Simulator
+          StatefulShellBranch(
+            navigatorKey: _sectionSimulationKey,
+            routes: [
+              GoRoute(
+                path: '/simulation',
+                builder: (context, state) => const DriverMapScreen(),
+              ),
+            ],
+          ),
+          // Branch 6: Security Reports
           StatefulShellBranch(
             navigatorKey: _sectionReportsKey,
             routes: [
               GoRoute(
                 path: '/reports',
                 builder: (context, state) => const SecurityReportsScreen(),
+              ),
+            ],
+          ),
+          // Branch 7: Alerts
+          StatefulShellBranch(
+            navigatorKey: _sectionAlertsKey,
+            routes: [
+              GoRoute(
+                path: '/alerts',
+                builder: (context, state) => const AlertsScreen(),
               ),
             ],
           ),
@@ -188,7 +229,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       // ==========================================
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
-          return DriverNavigationShell(navigationShell: navigationShell);
+          return DriverNavigationShell(
+            navigationShell: navigationShell,
+            currentPath: state.matchedLocation,
+          );
         },
         branches: [
           StatefulShellBranch(
@@ -279,11 +323,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         path: '/profile/edit',
         builder: (context, state) => const EditProfileScreen(),
-      ),
-      GoRoute(
-        parentNavigatorKey: _rootNavigatorKey,
-        path: '/trust',
-        builder: (context, state) => const TrustManagementScreen(),
       ),
       GoRoute(
         parentNavigatorKey: _rootNavigatorKey,
