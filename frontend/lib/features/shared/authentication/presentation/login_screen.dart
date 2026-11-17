@@ -16,58 +16,129 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   AuthViewMode _currentMode = AuthViewMode.login;
-  String _selectedRole = "Admin"; // "Admin" or "User"
+  String _selectedRole = "Admin"; // "Admin" or "Driver"
 
-  final _nameController = TextEditingController(text: "Admin Operator");
-  final _emailController = TextEditingController(text: "admin@vanet.com");
-  final _passwordController = TextEditingController(text: "admin123");
-  final _forgotEmailController = TextEditingController(text: "admin@vanet.com");
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  final _forgotEmailController = TextEditingController();
 
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
   bool _rememberMe = true;
   String? _successMessage;
+  String? _localValidationError;
+
+  @override
+  void initState() {
+    super.initState();
+    // Default helpful hint values
+    _emailController.text = "admin@vanet.com";
+    _passwordController.text = "";
+    _nameController.text = "";
+  }
 
   @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     _forgotEmailController.dispose();
     super.dispose();
   }
 
   Future<void> _handleSubmit() async {
-    setState(() => _successMessage = null);
+    setState(() {
+      _successMessage = null;
+      _localValidationError = null;
+    });
 
     if (_currentMode == AuthViewMode.forgotPassword) {
       final email = _forgotEmailController.text.trim();
-      if (email.isEmpty) return;
-      setState(() {
-        _successMessage = "Password reset instructions sent to $email";
-      });
+      if (email.isEmpty || !email.contains('@')) {
+        setState(() => _localValidationError = "Please enter a valid email address.");
+        return;
+      }
+      final success = await ref.read(authProvider.notifier).sendPasswordReset(email);
+      if (success && mounted) {
+        setState(() {
+          _successMessage = "Password reset link sent to $email. Please check your inbox.";
+        });
+      }
       return;
     }
 
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
-    final success = _currentMode == AuthViewMode.signup
-        ? await ref.read(authProvider.notifier).signUp(email, password, role: _selectedRole)
-        : await ref.read(authProvider.notifier).login(email, password, role: _selectedRole);
+    if (email.isEmpty || !email.contains('@')) {
+      setState(() => _localValidationError = "Please enter a valid email address.");
+      return;
+    }
 
-    if (success && mounted) {
-      final updatedAuth = ref.read(authProvider);
-      if (updatedAuth.isAdmin) {
-        context.go('/dashboard');
-      } else {
-        context.go('/driver/dashboard');
+    if (password.length < 6) {
+      setState(() => _localValidationError = "Password must be at least 6 characters.");
+      return;
+    }
+
+    if (_currentMode == AuthViewMode.signup) {
+      final confirmPassword = _confirmPasswordController.text;
+      if (password != confirmPassword) {
+        setState(() => _localValidationError = "Passwords do not match.");
+        return;
       }
+
+      final name = _nameController.text.trim();
+      final success = await ref.read(authProvider.notifier).signUp(
+            email,
+            password,
+            name: name.isNotEmpty ? name : (_selectedRole == 'Admin' ? 'Admin Operator' : 'Vehicle Driver'),
+            role: _selectedRole,
+          );
+
+      if (success && mounted) {
+        _navigateAfterAuth();
+      }
+    } else {
+      final success = await ref.read(authProvider.notifier).login(
+            email,
+            password,
+            role: _selectedRole,
+          );
+
+      if (success && mounted) {
+        _navigateAfterAuth();
+      }
+    }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() {
+      _successMessage = null;
+      _localValidationError = null;
+    });
+
+    final success = await ref.read(authProvider.notifier).signInWithGoogle(role: _selectedRole);
+    if (success && mounted) {
+      _navigateAfterAuth();
+    }
+  }
+
+  void _navigateAfterAuth() {
+    final updatedAuth = ref.read(authProvider);
+    if (updatedAuth.isAdmin) {
+      context.go('/dashboard');
+    } else {
+      context.go('/driver/dashboard');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
+    final displayedError = _localValidationError ?? authState.errorMessage;
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -81,6 +152,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   setState(() {
                     _currentMode = AuthViewMode.login;
                     _successMessage = null;
+                    _localValidationError = null;
                   });
                 },
               )
@@ -92,22 +164,41 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
+              constraints: const BoxConstraints(maxWidth: 440),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // 🔹 Header Titles (Matching Mockup 2)
+                  // App Badge / Brand Header
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.security_rounded,
+                        color: AppTheme.primary,
+                        size: 38,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Header Titles
                   Text(
                     _getMainTitle(),
+                    textAlign: TextAlign.center,
                     style: GoogleFonts.outfit(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
                       color: AppTheme.textPrimary,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Text(
                     _getSubtitle(),
+                    textAlign: TextAlign.center,
                     style: GoogleFonts.outfit(
                       fontSize: 14,
                       color: AppTheme.textSecondary,
@@ -116,7 +207,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                   const SizedBox(height: 24),
 
-                  // 🔹 Role Selector Pills
+                  // Role Selector Pills
                   if (_currentMode != AuthViewMode.forgotPassword) ...[
                     Row(
                       children: [
@@ -125,49 +216,71 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: _buildRoleSelector("Driver", Icons.directions_car_rounded, label: "Driver / OBU"),
+                          child: _buildRoleSelector("Driver", Icons.directions_car_rounded, label: "Driver / Node"),
                         ),
                       ],
                     ),
                     const SizedBox(height: 20),
                   ],
 
-                  // 🔹 Sign Up: Name Field
+                  // Sign Up: Full Name Field
                   if (_currentMode == AuthViewMode.signup) ...[
-                    _buildFieldLabel('Name'),
+                    _buildFieldLabel('Full Name'),
                     const SizedBox(height: 6),
                     _buildInputField(
                       controller: _nameController,
-                      hint: 'Enter your full name',
+                      hint: 'e.g. John Doe',
                       icon: Icons.person_outline_rounded,
                     ),
                     const SizedBox(height: 16),
                   ],
 
-                  // 🔹 Email Field
+                  // Email Field
                   if (_currentMode != AuthViewMode.forgotPassword) ...[
-                    _buildFieldLabel('Email'),
+                    _buildFieldLabel('Email Address'),
                     const SizedBox(height: 6),
                     _buildInputField(
                       controller: _emailController,
-                      hint: 'admin@vanet.com',
+                      hint: _selectedRole == 'Admin' ? 'admin@vanet.com' : 'driver@vanet.com',
                       icon: Icons.mail_outline_rounded,
                       keyboardType: TextInputType.emailAddress,
                     ),
                     const SizedBox(height: 16),
 
-                    // 🔹 Password Field
+                    // Password Field
                     _buildFieldLabel('Password'),
                     const SizedBox(height: 6),
                     _buildInputField(
                       controller: _passwordController,
-                      hint: '••••••••',
+                      hint: 'Min. 6 characters',
                       icon: Icons.lock_outline_rounded,
                       isPassword: true,
+                      obscureText: _obscurePassword,
+                      onToggleObscure: () {
+                        setState(() => _obscurePassword = !_obscurePassword);
+                      },
                     ),
                     const SizedBox(height: 12),
 
-                    // 🔹 Remember Me Checkbox & Forgot Password Row (Matching Mockup 2)
+                    // Sign Up: Confirm Password Field
+                    if (_currentMode == AuthViewMode.signup) ...[
+                      const SizedBox(height: 4),
+                      _buildFieldLabel('Confirm Password'),
+                      const SizedBox(height: 6),
+                      _buildInputField(
+                        controller: _confirmPasswordController,
+                        hint: 'Repeat password',
+                        icon: Icons.lock_reset_rounded,
+                        isPassword: true,
+                        obscureText: _obscureConfirmPassword,
+                        onToggleObscure: () {
+                          setState(() => _obscureConfirmPassword = !_obscureConfirmPassword);
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+
+                    // Remember Me & Forgot Password Row (Login mode only)
                     if (_currentMode == AuthViewMode.login)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -204,7 +317,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             onTap: () {
                               setState(() {
                                 _currentMode = AuthViewMode.forgotPassword;
+                                _forgotEmailController.text = _emailController.text;
                                 _successMessage = null;
+                                _localValidationError = null;
                               });
                             },
                             child: Text(
@@ -220,9 +335,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                   ],
 
-                  // 🔹 Forgot Password Mode Input
+                  // Forgot Password Mode Input
                   if (_currentMode == AuthViewMode.forgotPassword) ...[
-                    _buildFieldLabel('Account Email'),
+                    _buildFieldLabel('Account Email Address'),
                     const SizedBox(height: 6),
                     _buildInputField(
                       controller: _forgotEmailController,
@@ -233,43 +348,67 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: 16),
                   ],
 
-                  // 🔹 Error Message Banner
-                  if (authState.errorMessage != null) ...[
-                    const SizedBox(height: 12),
+                  // Error Message Banner
+                  if (displayedError != null) ...[
+                    const SizedBox(height: 14),
                     Container(
-                      padding: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       decoration: BoxDecoration(
-                        color: AppTheme.error.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppTheme.error.withValues(alpha: 0.3)),
+                        color: AppTheme.error.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppTheme.error.withValues(alpha: 0.35)),
                       ),
-                      child: Text(
-                        authState.errorMessage!,
-                        style: GoogleFonts.outfit(color: AppTheme.error, fontSize: 12),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error_outline_rounded, color: AppTheme.error, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              displayedError,
+                              style: GoogleFonts.outfit(
+                                color: AppTheme.error,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
 
-                  // 🔹 Success Message Banner
+                  // Success Message Banner
                   if (_successMessage != null) ...[
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                     Container(
-                      padding: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       decoration: BoxDecoration(
-                        color: AppTheme.safe.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppTheme.safe.withValues(alpha: 0.3)),
+                        color: AppTheme.safe.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppTheme.safe.withValues(alpha: 0.35)),
                       ),
-                      child: Text(
-                        _successMessage!,
-                        style: GoogleFonts.outfit(color: AppTheme.safe, fontSize: 12),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.check_circle_outline_rounded, color: AppTheme.safe, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              _successMessage!,
+                              style: GoogleFonts.outfit(
+                                color: AppTheme.safe,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 22),
 
-                  // 🔹 Orange Primary Action Button (Matching Mockup 2)
+                  // Primary Action Button
                   SizedBox(
                     width: double.infinity,
                     height: 50,
@@ -283,26 +422,78 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       onPressed: authState.isLoading ? null : _handleSubmit,
                       child: authState.isLoading
                           ? const SizedBox(
-                              width: 20,
-                              height: 20,
+                              width: 22,
+                              height: 22,
                               child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppTheme.surface,
+                                strokeWidth: 2.2,
+                                color: Colors.white,
                               ),
                             )
                           : Text(
                               _getButtonLabel(),
                               style: GoogleFonts.outfit(
                                 fontWeight: FontWeight.bold,
-                                fontSize: 15,
+                                fontSize: 15.5,
                               ),
                             ),
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  // Google Sign-In (For Login and Signup modes)
+                  if (_currentMode != AuthViewMode.forgotPassword) ...[
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        const Expanded(child: Divider(color: AppTheme.border)),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Text(
+                            'or continue with',
+                            style: GoogleFonts.outfit(
+                              color: AppTheme.textSecondary,
+                              fontSize: 12.5,
+                            ),
+                          ),
+                        ),
+                        const Expanded(child: Divider(color: AppTheme.border)),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
 
-                  // 🔹 Sign Up / Login Footer Toggle (Matching Mockup 2)
+                    // Google Sign-In Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: AppTheme.surface,
+                          foregroundColor: AppTheme.textPrimary,
+                          side: const BorderSide(color: AppTheme.border, width: 1.2),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: authState.isLoading ? null : _handleGoogleSignIn,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _buildGoogleIcon(),
+                            const SizedBox(width: 12),
+                            Text(
+                              _currentMode == AuthViewMode.signup ? 'Sign up with Google' : 'Sign in with Google',
+                              style: GoogleFonts.outfit(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14.5,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 22),
+
+                  // Footer Link
                   Center(
                     child: _buildFooterLink(),
                   ),
@@ -315,10 +506,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
+  Widget _buildGoogleIcon() {
+    return Container(
+      width: 22,
+      height: 22,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Center(
+        child: Text(
+          'G',
+          style: GoogleFonts.poppins(
+            fontSize: 17,
+            fontWeight: FontWeight.w900,
+            color: const Color(0xFF4285F4),
+          ),
+        ),
+      ),
+    );
+  }
+
   String _getMainTitle() {
     switch (_currentMode) {
       case AuthViewMode.login:
-        return 'Welcome Back!';
+        return 'Welcome Back';
       case AuthViewMode.signup:
         return 'Create Account';
       case AuthViewMode.forgotPassword:
@@ -329,22 +541,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   String _getSubtitle() {
     switch (_currentMode) {
       case AuthViewMode.login:
-        return 'Sign in to continue';
+        return 'Sign in with Firebase to access VANET Monitor';
       case AuthViewMode.signup:
-        return 'Register new operator or supervisor node';
+        return 'Register new operator node or supervisor';
       case AuthViewMode.forgotPassword:
-        return 'Enter email to receive recovery instructions';
+        return 'Enter your email to receive recovery instructions';
     }
   }
 
   String _getButtonLabel() {
     switch (_currentMode) {
       case AuthViewMode.login:
-        return 'Login';
+        return 'Sign In';
       case AuthViewMode.signup:
-        return 'Sign Up';
+        return 'Create Account';
       case AuthViewMode.forgotPassword:
-        return 'Send Instructions';
+        return 'Send Reset Link';
     }
   }
 
@@ -369,12 +581,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           _selectedRole = role;
           if (role == 'Admin') {
             _emailController.text = 'admin@vanet.com';
-            _passwordController.text = 'admin123';
-            _nameController.text = 'Admin Operator';
           } else {
             _emailController.text = 'driver@vanet.com';
-            _passwordController.text = 'driver123';
-            _nameController.text = 'Vehicle Driver';
           }
         });
       },
@@ -418,6 +626,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     required String hint,
     required IconData icon,
     bool isPassword = false,
+    bool obscureText = false,
+    VoidCallback? onToggleObscure,
     TextInputType keyboardType = TextInputType.text,
   }) {
     return Container(
@@ -428,7 +638,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
       child: TextField(
         controller: controller,
-        obscureText: isPassword && _obscurePassword,
+        obscureText: isPassword && obscureText,
         keyboardType: keyboardType,
         style: GoogleFonts.outfit(color: AppTheme.textPrimary, fontSize: 14),
         decoration: InputDecoration(
@@ -438,15 +648,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           suffixIcon: isPassword
               ? IconButton(
                   icon: Icon(
-                    _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                    obscureText ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                     size: 19,
                     color: AppTheme.textSecondary,
                   ),
-                  onPressed: () {
-                    setState(() {
-                      _obscurePassword = !_obscurePassword;
-                    });
-                  },
+                  onPressed: onToggleObscure,
                 )
               : null,
           border: InputBorder.none,
@@ -475,6 +681,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               setState(() {
                 _currentMode = AuthViewMode.signup;
                 _successMessage = null;
+                _localValidationError = null;
               });
             },
             child: Text(
@@ -488,7 +695,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ],
       );
-    } else {
+    } else if (_currentMode == AuthViewMode.signup) {
       return Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -501,6 +708,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               setState(() {
                 _currentMode = AuthViewMode.login;
                 _successMessage = null;
+                _localValidationError = null;
               });
             },
             child: Text(
@@ -513,6 +721,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
           ),
         ],
+      );
+    } else {
+      return InkWell(
+        onTap: () {
+          setState(() {
+            _currentMode = AuthViewMode.login;
+            _successMessage = null;
+            _localValidationError = null;
+          });
+        },
+        child: Text(
+          '← Back to Login',
+          style: GoogleFonts.outfit(
+            color: AppTheme.primary,
+            fontWeight: FontWeight.bold,
+            fontSize: 13.5,
+          ),
+        ),
       );
     }
   }

@@ -21,56 +21,70 @@ class DriverNavigationShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final driverState = ref.watch(driverProvider);
-    final isWide = MediaQuery.of(context).size.width >= 800;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isWide = screenWidth >= 800;
+    final isCompact = screenWidth < 480;
 
     final appBar = AppBar(
+      titleSpacing: isCompact ? 4 : 12,
       title: Row(
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: EdgeInsets.symmetric(horizontal: isCompact ? 6 : 8, vertical: 4),
             decoration: BoxDecoration(
               color: AppTheme.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.directions_car_rounded, size: 16, color: AppTheme.primary),
-                const SizedBox(width: 4),
-                Text(
-                  'DRIVER OBU',
-                  style: GoogleFonts.outfit(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primary,
-                    letterSpacing: 0.8,
+                const Icon(Icons.directions_car_rounded, size: 15, color: AppTheme.primary),
+                if (!isCompact) ...[
+                  const SizedBox(width: 4),
+                  Text(
+                    'DRIVER OBU',
+                    style: GoogleFonts.outfit(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primary,
+                      letterSpacing: 0.8,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
-          const SizedBox(width: 10),
-          Text(
-            _getTitle(navigationShell.currentIndex),
-            style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              _getTitle(navigationShell.currentIndex),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.outfit(
+                fontSize: isCompact ? 14.5 : 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
       actions: [
         // Trust Badge on App Bar
         Container(
-          margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          margin: EdgeInsets.symmetric(vertical: 10, horizontal: isCompact ? 2 : 8),
+          padding: EdgeInsets.symmetric(horizontal: isCompact ? 8 : 10, vertical: 4),
           decoration: BoxDecoration(
             color: AppTheme.safe.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: AppTheme.safe.withValues(alpha: 0.3)),
           ),
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               const Icon(Icons.verified_user_rounded, size: 14, color: AppTheme.safe),
               const SizedBox(width: 4),
               Text(
-                '${(driverState.trustScore * 100).toInt()}% Trust',
+                '${(driverState.trustScore * 100).toInt()}%${isCompact ? '' : ' Trust'}',
                 style: GoogleFonts.outfit(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
