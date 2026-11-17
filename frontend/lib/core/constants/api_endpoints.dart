@@ -1,18 +1,5 @@
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart';
-
 class ApiEndpoints {
-  static String get baseUrl {
-    if (kIsWeb) {
-      return "http://localhost:8000/api/v1";
-    }
-    try {
-      if (Platform.isAndroid) {
-        return "http://10.0.2.2:8000/api/v1";
-      }
-    } catch (_) {}
-    return "http://localhost:8000/api/v1";
-  }
+  static const String baseUrl = "http://localhost:8000/api/v1";
 
   // Auth Endpoints
   static const String register = "/auth/register";
