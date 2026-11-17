@@ -23,9 +23,9 @@ class VanetApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'VANET Security Monitor',
       debugShowCheckedModeBanner: false,
-      themeMode: themeMode,
+      themeMode: ThemeMode.light,
       theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
+      darkTheme: AppTheme.lightTheme,
       routerConfig: router,
     );
   }

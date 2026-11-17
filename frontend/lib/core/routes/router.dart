@@ -14,6 +14,7 @@ import 'package:vanet_mobile/features/admin/vehicles/presentation/vehicles_scree
 import 'package:vanet_mobile/features/admin/vehicles/presentation/vehicle_details_screen.dart';
 import 'package:vanet_mobile/features/admin/vehicles/presentation/ai_detection_screen.dart';
 import 'package:vanet_mobile/features/admin/vehicles/presentation/ai_explanation_screen.dart';
+import 'package:vanet_mobile/features/admin/vehicles/presentation/ai_model_lab_screen.dart';
 import 'package:vanet_mobile/features/admin/trust/presentation/trust_management_screen.dart';
 import 'package:vanet_mobile/features/admin/trust/presentation/trust_history_screen.dart';
 import 'package:vanet_mobile/features/admin/emergency/presentation/emergency_vehicles_screen.dart';
@@ -44,14 +45,11 @@ import 'package:vanet_mobile/models/route_model.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
-// Admin Shell Keys
+// Admin Shell Keys (5 Core Footer Branches)
 final _sectionDashboardKey = GlobalKey<NavigatorState>();
 final _sectionVehiclesKey = GlobalKey<NavigatorState>();
-final _sectionXAIKey = GlobalKey<NavigatorState>();
-final _sectionTrustKey = GlobalKey<NavigatorState>();
-final _sectionEmergencyKey = GlobalKey<NavigatorState>();
 final _sectionSimulationKey = GlobalKey<NavigatorState>();
-final _sectionReportsKey = GlobalKey<NavigatorState>();
+final _sectionEmergencyKey = GlobalKey<NavigatorState>();
 final _sectionAlertsKey = GlobalKey<NavigatorState>();
 
 // Driver Shell Keys
@@ -141,7 +139,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
         branches: [
-          // Branch 0: Dashboard
+          // 0. Dashboard
           StatefulShellBranch(
             navigatorKey: _sectionDashboardKey,
             routes: [
@@ -151,7 +149,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          // Branch 1: AI Detection
+          // 1. Vehicles & AI Detection
           StatefulShellBranch(
             navigatorKey: _sectionVehiclesKey,
             routes: [
@@ -161,37 +159,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          // Branch 2: Explainable AI
-          StatefulShellBranch(
-            navigatorKey: _sectionXAIKey,
-            routes: [
-              GoRoute(
-                path: '/xai',
-                builder: (context, state) => const AIExplanationScreen(id: 'V1023'),
-              ),
-            ],
-          ),
-          // Branch 3: Trust Management
-          StatefulShellBranch(
-            navigatorKey: _sectionTrustKey,
-            routes: [
-              GoRoute(
-                path: '/trust',
-                builder: (context, state) => const TrustManagementScreen(),
-              ),
-            ],
-          ),
-          // Branch 4: Emergency Routes
-          StatefulShellBranch(
-            navigatorKey: _sectionEmergencyKey,
-            routes: [
-              GoRoute(
-                path: '/emergency',
-                builder: (context, state) => const EmergencyVehiclesScreen(),
-              ),
-            ],
-          ),
-          // Branch 5: Highway Simulator
+          // 2. Highway Simulator
           StatefulShellBranch(
             navigatorKey: _sectionSimulationKey,
             routes: [
@@ -201,17 +169,17 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          // Branch 6: Security Reports
+          // 3. Emergency Routes & Priority
           StatefulShellBranch(
-            navigatorKey: _sectionReportsKey,
+            navigatorKey: _sectionEmergencyKey,
             routes: [
               GoRoute(
-                path: '/reports',
-                builder: (context, state) => const SecurityReportsScreen(),
+                path: '/emergency',
+                builder: (context, state) => const EmergencyVehiclesScreen(),
               ),
             ],
           ),
-          // Branch 7: Alerts
+          // 4. Alerts
           StatefulShellBranch(
             navigatorKey: _sectionAlertsKey,
             routes: [
@@ -314,6 +282,26 @@ final routerProvider = Provider<GoRouter>((ref) {
       // ==========================================
       // 🛡️ ADMIN SECONDARY & DETAIL ROUTES
       // ==========================================
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: '/trust',
+        builder: (context, state) => const TrustManagementScreen(),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: '/reports',
+        builder: (context, state) => const SecurityReportsScreen(),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: '/xai',
+        builder: (context, state) => const AIExplanationScreen(id: 'V1023'),
+      ),
+      GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
+        path: '/model-lab',
+        builder: (context, state) => const AIModelLabScreen(),
+      ),
       GoRoute(
         parentNavigatorKey: _rootNavigatorKey,
         path: '/profile',

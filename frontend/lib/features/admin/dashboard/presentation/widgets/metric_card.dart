@@ -8,7 +8,7 @@ class MetricCard extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color accentColor;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const MetricCard({
     super.key,
@@ -16,7 +16,7 @@ class MetricCard extends StatelessWidget {
     required this.value,
     required this.icon,
     required this.accentColor,
-    required this.onTap,
+    this.onTap,
   });
 
   @override

@@ -21,10 +21,8 @@ class CriticalAlertSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SectionHeader(
+        const SectionHeader(
           title: 'Critical Alerts',
-          actionLabel: 'View All',
-          onActionTap: () => context.go('/alerts'),
         ),
         const SizedBox(height: 10),
 

@@ -78,60 +78,8 @@ class DashboardScreen extends ConsumerWidget {
             ),
           ],
         ),
-        actions: [
-          // 🚗 Quick Switch to Highway Simulation
-          InkWell(
-            onTap: () => context.go('/simulation'),
-            borderRadius: BorderRadius.circular(20),
-            child: Container(
-              margin: const EdgeInsets.symmetric(vertical: 10),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0284C7).withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFF0284C7), width: 1),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.directions_car_rounded, size: 16, color: Color(0xFF0284C7)),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Simulator',
-                    style: GoogleFonts.outfit(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF0284C7),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications_none_rounded, color: AppColors.textPrimary, size: 24),
-                onPressed: () => context.go('/alerts'),
-              ),
-              if (state.alerts.isNotEmpty)
-                Positioned(
-                  top: 12,
-                  right: 12,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: AppColors.error,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(width: 8),
+        actions: const [
+          SizedBox(width: 8),
         ],
       ),
       body: RefreshIndicator(
@@ -178,7 +126,6 @@ class DashboardScreen extends ConsumerWidget {
                       value: '$totalVehicles',
                       icon: Icons.directions_car_rounded,
                       accentColor: AppColors.primary,
-                      onTap: () => context.go('/vehicles'),
                     ),
                     // Suspicious Vehicles
                     MetricCard(
@@ -186,15 +133,13 @@ class DashboardScreen extends ConsumerWidget {
                       value: '$suspiciousCount',
                       icon: Icons.warning_amber_rounded,
                       accentColor: AppColors.warning,
-                      onTap: () => context.go('/vehicles'),
                     ),
                     // Emergency Vehicles
                     MetricCard(
                       title: 'Emergency Vehicles',
                       value: emergencyCount < 10 ? '0$emergencyCount' : '$emergencyCount',
                       icon: Icons.local_hospital_rounded,
-                      accentColor: const Color(0xFF2563EB),
-                      onTap: () => context.go('/emergency'),
+                      accentColor: const Color(0xFFE45D3F),
                     ),
                     // Active Threats
                     MetricCard(
@@ -202,7 +147,6 @@ class DashboardScreen extends ConsumerWidget {
                       value: activeThreatsCount < 10 ? '0$activeThreatsCount' : '$activeThreatsCount',
                       icon: Icons.gpp_bad_rounded,
                       accentColor: AppColors.error,
-                      onTap: () => context.go('/alerts'),
                     ),
                   ],
                 ),

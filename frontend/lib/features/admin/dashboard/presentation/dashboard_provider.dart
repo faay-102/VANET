@@ -320,6 +320,206 @@ class DashboardNotifier extends StateNotifier<DashboardState> {
     );
   }
 
+  /// Interactive Test: Register a new vehicle dynamically
+  void addTestVehicle({
+    required String id,
+    double initialTrust = 95.0,
+    bool isEmergency = false,
+    double speed = 52.0,
+  }) {
+    final cleanId = id.trim().toUpperCase();
+    if (state.vehicles.any((v) => v.id.toUpperCase() == cleanId)) {
+      return; // Already exists
+    }
+
+    final newVehicle = VehicleModel(
+      id: cleanId,
+      speed: speed,
+      acceleration: 0.8,
+      direction: 'North',
+      latitude: 33.6890,
+      longitude: 73.0520,
+      trustScore: initialTrust,
+      trustStatus: initialTrust >= 75 ? 'Trusted' : (initialTrust >= 40 ? 'Suspicious' : 'Untrusted'),
+      lastActivity: DateTime.now(),
+      isEmergency: isEmergency,
+    );
+
+    final newTrust = TrustModel(
+      vehicleId: cleanId,
+      currentTrust: initialTrust,
+      previousTrust: initialTrust,
+      trustChange: 0.0,
+      reason: 'Newly registered node initialized with standard baseline credentials.',
+      trustHistory: [initialTrust],
+      attackCount: 0,
+    );
+
+    state = state.copyWith(
+      vehicles: [newVehicle, ...state.vehicles],
+      trustRankings: [newTrust, ...state.trustRankings],
+    );
+  }
+
+  /// Interactive Test: Inject an attack on a vehicle and recalculate Trust, XAI, and Alerts
+  void injectAttackOnVehicle({
+    required String vehicleId,
+    required String attackType,
+  }) {
+    final vehicleIndex = state.vehicles.indexWhere((v) => v.id.toLowerCase() == vehicleId.toLowerCase());
+    if (vehicleIndex == -1) return;
+
+    final existing = state.vehicles[vehicleIndex];
+    double penalty = 45.0;
+    String humanReason = 'Abnormal communication profile inconsistent with adjacent nodes.';
+    Map<String, double> shapMap = {
+      'Speed Value': 0.50,
+      'Acceleration Anomaly': 0.30,
+      'GPS Position Delta': 0.10,
+      'Signal Strengths': 0.06,
+      'Message Intervals': 0.04,
+    };
+
+    if (attackType == 'Speed Anomaly') {
+      penalty = 42.0;
+      humanReason = 'Vehicle transmitting excessive velocity (142 km/h) and rapid acceleration swings outside safety envelope.';
+      shapMap = {
+        'Speed Value': 0.65,
+        'Acceleration Anomaly': 0.25,
+        'GPS Position Delta': 0.05,
+        'Signal Strengths': 0.03,
+        'Message Intervals': 0.02,
+      };
+    } else if (attackType == 'Position Spoofing') {
+      penalty = 62.0;
+      humanReason = 'Broadcast GPS coordinates contradict physical transmission range and RSU triangulation.';
+      shapMap = {
+        'GPS Position Delta': 0.72,
+        'Speed Value': 0.12,
+        'Acceleration Anomaly': 0.08,
+        'Signal Strengths': 0.05,
+        'Message Intervals': 0.03,
+      };
+    } else if (attackType == 'Fake Emergency Claim') {
+      penalty = 60.0;
+      humanReason = 'Node broadcasted priority preemption beacon but failed cryptographic PKI signature validation.';
+      shapMap = {
+        'PKI Sign Status': 0.85,
+        'Speed Value': 0.06,
+        'Acceleration Anomaly': 0.04,
+        'GPS Position Delta': 0.03,
+        'Message Intervals': 0.02,
+      };
+    } else if (attackType == 'Sybil Identity Attack') {
+      penalty = 55.0;
+      humanReason = 'Single transmitter injecting conflicting MAC/ID claims across simultaneous BSM frames.';
+      shapMap = {
+        'Message Intervals': 0.58,
+        'Signal Strengths': 0.24,
+        'Speed Value': 0.10,
+        'GPS Position Delta': 0.05,
+        'Acceleration Anomaly': 0.03,
+      };
+    }
+
+    final newTrust = (existing.trustScore - penalty).clamp(10.0, 100.0);
+    final newStatus = newTrust >= 75 ? 'Trusted' : (newTrust >= 40 ? 'Suspicious' : 'Untrusted');
+
+    final updatedVehicle = VehicleModel(
+      id: existing.id,
+      speed: attackType == 'Speed Anomaly' ? 142.0 : existing.speed,
+      acceleration: attackType == 'Speed Anomaly' ? 7.8 : existing.acceleration,
+      direction: existing.direction,
+      latitude: attackType == 'Position Spoofing' ? 33.7250 : existing.latitude,
+      longitude: attackType == 'Position Spoofing' ? 73.0880 : existing.longitude,
+      trustScore: newTrust,
+      trustStatus: newStatus,
+      lastActivity: DateTime.now(),
+      attackType: attackType,
+      isEmergency: existing.isEmergency,
+    );
+
+    final updatedVehicles = List<VehicleModel>.from(state.vehicles);
+    updatedVehicles[vehicleIndex] = updatedVehicle;
+
+    // Create / Update Explanation for Explainable AI tab
+    final newExplanation = ExplanationModel(
+      vehicleId: existing.id,
+      prediction: 'Malicious',
+      confidence: 94.8,
+      modelName: 'XGBoost VANET Misbehavior Classifier',
+      attackType: attackType,
+      severity: newTrust < 40 ? 'Critical' : 'High',
+      humanReason: humanReason,
+      shapValues: shapMap,
+      limeValues: shapMap,
+    );
+
+    final updatedExplanations = Map<String, ExplanationModel>.from(state.explanations);
+    updatedExplanations[existing.id] = newExplanation;
+
+    // Update Trust Rankings
+    final updatedRankings = state.trustRankings.map((t) {
+      if (t.vehicleId.toLowerCase() == existing.id.toLowerCase()) {
+        final history = List<double>.from(t.trustHistory)..add(newTrust);
+        return TrustModel(
+          vehicleId: t.vehicleId,
+          currentTrust: newTrust,
+          previousTrust: t.currentTrust,
+          trustChange: -(penalty),
+          reason: '$attackType flagged by AI Detector (-${penalty.toInt()} pts).',
+          trustHistory: history,
+          attackCount: t.attackCount + 1,
+        );
+      }
+      return t;
+    }).toList();
+
+    // Create Real-time Alert
+    final newAlert = AlertModel(
+      id: 'A-${DateTime.now().millisecondsSinceEpoch % 10000}',
+      category: attackType == 'Fake Emergency Claim' ? 'Emergency' : 'Security',
+      title: 'Attack Detected: $attackType',
+      description: 'Vehicle ${existing.id} flagged by ML engine: $humanReason',
+      timestamp: DateTime.now(),
+      severity: newTrust < 40 ? 'Critical' : 'High',
+      vehicleId: existing.id,
+    );
+
+    state = state.copyWith(
+      vehicles: updatedVehicles,
+      explanations: updatedExplanations,
+      trustRankings: updatedRankings,
+      alerts: [newAlert, ...state.alerts],
+    );
+  }
+
+  /// Interactive Test: Reset vehicle trust back to trusted
+  void resetVehicleTrust(String vehicleId) {
+    final vehicleIndex = state.vehicles.indexWhere((v) => v.id.toLowerCase() == vehicleId.toLowerCase());
+    if (vehicleIndex == -1) return;
+
+    final existing = state.vehicles[vehicleIndex];
+    final updatedVehicle = VehicleModel(
+      id: existing.id,
+      speed: 55.0,
+      acceleration: 0.5,
+      direction: existing.direction,
+      latitude: existing.latitude,
+      longitude: existing.longitude,
+      trustScore: 95.0,
+      trustStatus: 'Trusted',
+      lastActivity: DateTime.now(),
+      attackType: 'None',
+      isEmergency: existing.isEmergency,
+    );
+
+    final updatedVehicles = List<VehicleModel>.from(state.vehicles);
+    updatedVehicles[vehicleIndex] = updatedVehicle;
+
+    state = state.copyWith(vehicles: updatedVehicles);
+  }
+
   /// Simulates async data refresh / API re-fetch
   Future<void> refreshData() async {
     state = state.copyWith(isLoading: true, errorMessage: null);

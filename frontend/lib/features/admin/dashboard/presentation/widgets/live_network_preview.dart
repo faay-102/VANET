@@ -18,10 +18,8 @@ class LiveNetworkPreview extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SectionHeader(
+        const SectionHeader(
           title: 'Live Network & Fleet Simulation',
-          actionLabel: 'Open 3D View',
-          onActionTap: () => context.push('/driver/map'),
         ),
         const SizedBox(height: 10),
 
@@ -42,11 +40,7 @@ class LiveNetworkPreview extends StatelessWidget {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => context.go('/simulation'),
-                child: Stack(
+            child: Stack(
                   children: [
                     // Vector Highway Grid Paint
                     CustomPaint(
@@ -58,8 +52,8 @@ class LiveNetworkPreview extends StatelessWidget {
                     _build3DCarNode(
                       top: 48,
                       left: 60,
-                      color: const Color(0xFF0284C7),
-                      accentColor: const Color(0xFF38BDF8),
+                      color: const Color(0xFFE45D3F),
+                      accentColor: const Color(0xFFF97316),
                       label: 'V-101 (Host)',
                       icon: Icons.directions_car_rounded,
                       status: 'TRUSTED 94%',
@@ -132,8 +126,6 @@ class LiveNetworkPreview extends StatelessWidget {
                 ),
               ),
             ),
-          ),
-        ),
 
         const SizedBox(height: 10),
 

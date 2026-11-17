@@ -23,18 +23,23 @@ class _AIExplanationScreenState extends ConsumerState<AIExplanationScreen> {
     final state = ref.watch(dashboardProvider);
     final explanation = state.explanations[widget.id];
 
-    final isMalicious = explanation?.prediction.toLowerCase() == 'malicious' || widget.id == 'V1023' || widget.id == 'V103' || widget.id == 'V106';
+    final isMalicious = explanation != null
+        ? explanation.prediction.toLowerCase() == 'malicious'
+        : (widget.id.contains('203') || widget.id.contains('305') || widget.id.contains('509'));
     final predictionLabel = isMalicious ? 'Prediction: Malicious Vehicle' : 'Prediction: Trusted Vehicle';
     final bannerColor = isMalicious ? AppTheme.error : AppTheme.safe;
 
-    // SHAP Features from Mockup 6
-    final shapFeatures = [
+    // Default SHAP Features fallback if no dynamic values
+    final defaultShapFeatures = [
       {'name': 'Speed Anomaly', 'value': 0.42},
       {'name': 'Fake GPS Position', 'value': 0.31},
       {'name': 'High Message Frequency', 'value': 0.21},
       {'name': 'Acceleration Deviation', 'value': 0.12},
       {'name': 'Direction Inconsistency', 'value': 0.08},
     ];
+
+    final dynamicShap = explanation?.shapValues.entries.map((e) => {'name': e.key, 'value': e.value}).toList();
+    final shapFeatures = (dynamicShap != null && dynamicShap.isNotEmpty) ? dynamicShap : defaultShapFeatures;
 
     return Scaffold(
       backgroundColor: AppTheme.secondarySurface,

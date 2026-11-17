@@ -35,10 +35,10 @@ class AppDrawer extends ConsumerWidget {
                 children: [
                   CircleAvatar(
                     radius: 26,
-                    backgroundColor: (isAdmin ? AppTheme.primary : const Color(0xFF2563EB)).withValues(alpha: 0.15),
+                    backgroundColor: AppTheme.primary.withValues(alpha: 0.15),
                     child: Icon(
                       isAdmin ? Icons.shield_rounded : Icons.directions_car_rounded,
-                      color: isAdmin ? AppTheme.primary : const Color(0xFF2563EB),
+                      color: AppTheme.primary,
                       size: 28,
                     ),
                   ),
@@ -77,7 +77,7 @@ class AppDrawer extends ConsumerWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: (isAdmin ? AppTheme.primary : const Color(0xFF2563EB)).withValues(alpha: 0.12),
+                            color: AppTheme.primary.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
@@ -85,7 +85,7 @@ class AppDrawer extends ConsumerWidget {
                             style: GoogleFonts.outfit(
                               fontSize: 9.5,
                               fontWeight: FontWeight.bold,
-                              color: isAdmin ? AppTheme.primary : const Color(0xFF2563EB),
+                              color: AppTheme.primary,
                             ),
                           ),
                         ),
@@ -104,26 +104,16 @@ class AppDrawer extends ConsumerWidget {
               ),
             ),
 
-            // 🔹 Navigation Links List (Unified & Simple for Evaluators)
+            // Navigation Links List (Non-tab modules only)
             Expanded(
               child: ListView(
                 physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
                 children: [
-                  _buildDrawerItem(
-                    context: context,
-                    icon: Icons.dashboard_rounded,
-                    title: 'Dashboard',
-                    onTap: () {
-                      Navigator.pop(context);
-                      context.go('/dashboard');
-                    },
-                  ),
-                  const Divider(height: 16),
                   Padding(
-                    padding: const EdgeInsets.only(left: 12, bottom: 6),
+                    padding: const EdgeInsets.only(left: 12, top: 6, bottom: 6),
                     child: Text(
-                      'MENU',
+                      'ANALYTICS & AUDIT',
                       style: GoogleFonts.outfit(
                         fontSize: 10.5,
                         fontWeight: FontWeight.bold,
@@ -134,20 +124,11 @@ class AppDrawer extends ConsumerWidget {
                   ),
                   _buildDrawerItem(
                     context: context,
-                    icon: Icons.shield_rounded,
-                    title: 'AI Detection',
-                    onTap: () {
-                      Navigator.pop(context);
-                      context.push('/vehicles');
-                    },
-                  ),
-                  _buildDrawerItem(
-                    context: context,
                     icon: Icons.psychology_rounded,
                     title: 'Explainable AI',
                     onTap: () {
                       Navigator.pop(context);
-                      context.push('/vehicles/V1023/explanation');
+                      context.push('/vehicles/V-203/explanation');
                     },
                   ),
                   _buildDrawerItem(
@@ -157,24 +138,6 @@ class AppDrawer extends ConsumerWidget {
                     onTap: () {
                       Navigator.pop(context);
                       context.push('/trust');
-                    },
-                  ),
-                  _buildDrawerItem(
-                    context: context,
-                    icon: Icons.alt_route_rounded,
-                    title: 'Emergency Routes',
-                    onTap: () {
-                      Navigator.pop(context);
-                      context.push('/emergency/route');
-                    },
-                  ),
-                  _buildDrawerItem(
-                    context: context,
-                    icon: Icons.directions_car_rounded,
-                    title: 'Highway Simulator',
-                    onTap: () {
-                      Navigator.pop(context);
-                      context.push('/simulation');
                     },
                   ),
                   _buildDrawerItem(

@@ -15,7 +15,7 @@ git add .
 
 echo.
 echo [3/4] Committing changes...
-git commit -m "feat: full Explainable AI VANET misbehavior detection, trust management & emergency priority system"
+git commit -m "refactor: strictly separate bottom tabs with zero duplicate cross-navigation buttons"
 
 echo.
 echo [4/4] Pushing to main branch...

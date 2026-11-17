@@ -45,7 +45,7 @@ class AppTheme {
   }) {
     return BoxDecoration(
       gradient: const LinearGradient(
-        colors: [Color(0xFF0284C7), Color(0xFF0369A1)],
+        colors: [Color(0xFFE45D3F), Color(0xFFC2410C)],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
@@ -53,7 +53,7 @@ class AppTheme {
       boxShadow: hasShadow
           ? [
               BoxShadow(
-                color: const Color(0xFF0284C7).withValues(alpha: 0.25),
+                color: const Color(0xFFE45D3F).withValues(alpha: 0.25),
                 blurRadius: 16,
                 offset: const Offset(0, 6),
               ),

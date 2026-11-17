@@ -114,10 +114,10 @@ class DriverNavigationShell extends ConsumerWidget {
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF0284C7).withValues(alpha: 0.12),
+                              color: const Color(0xFFE45D3F).withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: const Icon(Icons.shield_rounded, color: Color(0xFF0284C7), size: 24),
+                            child: const Icon(Icons.shield_rounded, color: Color(0xFFE45D3F), size: 24),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -517,10 +517,10 @@ class DriverNavigationShell extends ConsumerWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: isActive ? const Color(0xFF0284C7).withValues(alpha: 0.12) : Colors.transparent,
+          color: isActive ? const Color(0xFFE45D3F).withValues(alpha: 0.12) : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isActive ? const Color(0xFF0284C7).withValues(alpha: 0.25) : Colors.transparent,
+            color: isActive ? const Color(0xFFE45D3F).withValues(alpha: 0.25) : Colors.transparent,
             width: 1,
           ),
         ),
@@ -529,7 +529,7 @@ class DriverNavigationShell extends ConsumerWidget {
             Icon(
               icon,
               size: 20,
-              color: isActive ? const Color(0xFF0284C7) : const Color(0xFF64748B),
+              color: isActive ? const Color(0xFFE45D3F) : const Color(0xFF64748B),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -540,7 +540,7 @@ class DriverNavigationShell extends ConsumerWidget {
                 style: GoogleFonts.outfit(
                   fontSize: 12.5,
                   fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
-                  color: isActive ? const Color(0xFF0284C7) : const Color(0xFF334155),
+                  color: isActive ? const Color(0xFFE45D3F) : const Color(0xFF334155),
                 ),
               ),
             ),
