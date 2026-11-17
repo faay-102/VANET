@@ -48,13 +48,13 @@ class LiveNetworkPreview extends StatelessWidget {
                       painter: _CyberRoadGridPainter(),
                     ),
 
-                    // 🚗 3D Stylized Vehicle Nodes on Map
+                    // 3D Stylized Vehicle Nodes on Map
                     _build3DCarNode(
                       top: 48,
                       left: 60,
-                      color: const Color(0xFFE45D3F),
-                      accentColor: const Color(0xFFF97316),
-                      label: 'V-101 (Host)',
+                      color: const Color(0xFF7C3AED),
+                      accentColor: const Color(0xFF6366F1),
+                      label: 'Host',
                       icon: Icons.directions_car_rounded,
                       status: 'TRUSTED 94%',
                       statusColor: AppColors.safe,

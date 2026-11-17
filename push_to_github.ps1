@@ -15,7 +15,7 @@ Write-Host "[2/4] Staging files..." -ForegroundColor Gray
 git add .
 
 Write-Host "[3/4] Creating commit..." -ForegroundColor Gray
-git commit -m "feat: added AI Model Lab & VeReMi Dataset Testing suite with real-time inference and SHAP attribution"
+git commit -m "feat: real-time interactive AI simulator with touch control, trained car dodge reactions, and authentic trust math"
 
 Write-Host "[4/4] Pushing to main branch..." -ForegroundColor Green
 git branch -M main

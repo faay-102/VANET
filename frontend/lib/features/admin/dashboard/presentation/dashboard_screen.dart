@@ -24,11 +24,12 @@ class DashboardScreen extends ConsumerWidget {
     final state = ref.watch(dashboardProvider);
     final notifier = ref.read(dashboardProvider.notifier);
 
-    // Dynamic metrics calculation with mock fallbacks matching prompt defaults
-    final totalVehicles = state.vehicles.isEmpty ? 248 : (state.vehicles.length * 50 - 2);
-    final suspiciousCount = state.vehicles.isEmpty ? 12 : state.vehicles.where((v) => v.trustStatus.toLowerCase() == 'suspicious').length + 11;
-    final emergencyCount = state.vehicles.isEmpty ? 3 : state.vehicles.where((v) => v.isEmergency).length + 1;
-    final activeThreatsCount = state.alerts.isEmpty ? 8 : state.alerts.where((a) => a.severity.toLowerCase() == 'high' || a.severity.toLowerCase() == 'critical').length + 6;
+    // Real dynamic metrics bound directly to the live vehicle & alert state
+    final totalVehicles = state.vehicles.length;
+    final suspiciousCount = state.vehicles.where((v) => v.trustStatus.toLowerCase() == 'suspicious' || v.trustStatus.toLowerCase() == 'untrusted').length;
+    final emergencyCount = state.vehicles.where((v) => v.isEmergency).length;
+    final activeThreatsCount = state.alerts.where((a) => a.severity.toLowerCase() == 'high' || a.severity.toLowerCase() == 'critical').length;
+    final anomalyCount = state.vehicles.where((v) => v.attackType.isNotEmpty && v.attackType.toLowerCase() != 'none').length;
 
     if (state.isLoading) {
       return const Scaffold(
@@ -106,7 +107,7 @@ class DashboardScreen extends ConsumerWidget {
                   suspiciousCount: suspiciousCount,
                   activeAttacksCount: activeThreatsCount,
                   emergencyCount: emergencyCount,
-                  anomalyCount: 4,
+                  anomalyCount: anomalyCount,
                 ),
 
                 const SizedBox(height: 20),
@@ -123,14 +124,14 @@ class DashboardScreen extends ConsumerWidget {
                     // Active Vehicles
                     MetricCard(
                       title: 'Active Vehicles',
-                      value: '$totalVehicles',
+                      value: totalVehicles < 10 ? '0$totalVehicles' : '$totalVehicles',
                       icon: Icons.directions_car_rounded,
                       accentColor: AppColors.primary,
                     ),
                     // Suspicious Vehicles
                     MetricCard(
                       title: 'Suspicious Vehicles',
-                      value: '$suspiciousCount',
+                      value: suspiciousCount < 10 ? '0$suspiciousCount' : '$suspiciousCount',
                       icon: Icons.warning_amber_rounded,
                       accentColor: AppColors.warning,
                     ),

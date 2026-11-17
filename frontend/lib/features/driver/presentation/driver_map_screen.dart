@@ -15,21 +15,43 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animController;
   bool _isPaused = false;
-  String? _activeScenarioType; // null = continuous automated loop
-  String _activeDirection = 'Rear Lane (South)';
+
+  // --- Interactive Vehicle & AI Testing State ---
+  // Position of user-controlled / spawned vehicle (null = auto-looping scenario)
+  Offset? _interactiveCarPos;
+  String _interactiveCarType = 'speed_attack'; // 'civilian', 'speed_attack', 'gps_spoof', 'ambulance'
+  String _interactiveCarLabel = 'ATK-707 (Speed Anomaly)';
+  double _interactiveCarSpeed = 135.0; // km/h
+  bool _isDragging = false;
+  bool _showDpad = true;
+
+  // Trained Host Car (V-101) Dynamic Physical State
+  double _trainedCarLaneOffset = 0.0; // Target X offset: -110 (Lane 1), 0 (Lane 2), 110 (Lane 3)
+  double _trainedCarCurrentX = 0.0; // Smoothly interpolated position
+  double _trainedCarSpeed = 60.0; // km/h
+  bool _isEmergencyBraking = false;
+  bool _isDodging = false;
+  int _dodgeDirection = 0; // -1 = Left, +1 = Right
+  String _aiDecision = 'V2X CRUISE: MONITORING 10Hz BSMs';
+  Color _aiDecisionColor = const Color(0xFF059669);
+
+  // Mathematical Beta-Distribution Trust State: T = alpha / (alpha + beta)
+  double _alpha = 88.0; // Positive consistent packets
+  double _beta = 12.0;  // Anomaly penalties
+  double _liveTrustScore = 88.0;
 
   @override
   void initState() {
     super.initState();
-    // 15-second complete automated cycle looping continuously
     _animController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 15),
-    )..repeat();
+    )..addListener(_onTick)..repeat();
   }
 
   @override
   void dispose() {
+    _animController.removeListener(_onTick);
     _animController.dispose();
     super.dispose();
   }
@@ -45,247 +67,407 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
     });
   }
 
+  // --- Real-Time AI Autonomous Reaction Loop ---
+  void _onTick() {
+    if (!mounted) return;
+    final size = MediaQuery.maybeOf(context)?.size ?? const Size(400, 800);
+    final cx = size.width * 0.5;
+    final playerY = size.height * 0.55;
+
+    // Initialize interactive car position on first tick if null
+    _interactiveCarPos ??= Offset(cx, size.height * 0.32);
+
+    final targetPos = _interactiveCarPos!;
+    final playerPos = Offset(cx + _trainedCarCurrentX, playerY);
+
+    // 1. Calculate Relative Kinematics
+    final dx = targetPos.dx - playerPos.dx;
+    final dy = targetPos.dy - playerPos.dy; // Negative = Ahead, Positive = Behind
+    final distPixels = math.sqrt(dx * dx + dy * dy);
+    final distMeters = (distPixels / 4.5).clamp(2.0, 150.0);
+
+    // 2. Evaluate Anomaly & Compute Mathematical Beta Trust
+    if (_interactiveCarType == 'speed_attack') {
+      _alpha = 25.0;
+      _beta = 75.0;
+      _liveTrustScore = (_alpha / (_alpha + _beta)) * 100.0; // 25% Untrusted
+    } else if (_interactiveCarType == 'gps_spoof') {
+      _alpha = 15.0;
+      _beta = 85.0;
+      _liveTrustScore = (_alpha / (_alpha + _beta)) * 100.0; // 15% Rogue
+    } else if (_interactiveCarType == 'ambulance') {
+      _alpha = 99.0;
+      _beta = 1.0;
+      _liveTrustScore = 99.0; // Authenticated PKI
+    } else {
+      // Civilian
+      _alpha = 94.0;
+      _beta = 6.0;
+      _liveTrustScore = (_alpha / (_alpha + _beta)) * 100.0; // 94% Trusted
+    }
+
+    // 3. AI Autonomous Reaction Engine
+    // Check if test vehicle is in our lane or cutting into our path
+    final isSameLane = dx.abs() < 55.0;
+    final isAheadDangerous = dy < 0 && dy > -150.0; // Ahead within 150px
+    final isTailgatingDangerous = dy > 0 && dy < 110.0; // Behind within 110px
+
+    if (_interactiveCarType == 'ambulance') {
+      // Preemption Protocol: Emergency Siren detected -> Yield to Right Lane (Lane 3)
+      _trainedCarLaneOffset = 110.0;
+      _isDodging = true;
+      _dodgeDirection = 1;
+      _isEmergencyBraking = false;
+      _trainedCarSpeed = 45.0;
+      _aiDecision = 'PREEMPTION YIELD: CLEARING EXPRESS CORRIDOR';
+      _aiDecisionColor = const Color(0xFF0284C7);
+    } else if (isSameLane && (isAheadDangerous || isTailgatingDangerous)) {
+      // Threat in current lane: Autonomous Decision
+      if (distMeters < 8.0) {
+        // Critical Proximity: Emergency Brake + Collision Avoidance
+        _isEmergencyBraking = true;
+        _trainedCarSpeed = 0.0;
+        _aiDecision = 'COLLISION THREAT: EMERGENCY BRAKE ACTIVATED';
+        _aiDecisionColor = const Color(0xFFDC2626);
+      } else {
+        // Safe Dodge: Evaluate Adjacent Lanes for Evasive Lane Change
+        _isEmergencyBraking = false;
+        _trainedCarSpeed = 52.0;
+
+        // Try Left Lane (cx - 110) if not already on left curb
+        if (_trainedCarLaneOffset >= 0.0) {
+          _trainedCarLaneOffset = -110.0;
+          _isDodging = true;
+          _dodgeDirection = -1;
+          _aiDecision = 'AI EVASIVE DODGE: SWERVING TO LEFT LANE';
+          _aiDecisionColor = const Color(0xFFEA580C);
+        } else {
+          // If already in Left Lane, Dodge Right
+          _trainedCarLaneOffset = 110.0;
+          _isDodging = true;
+          _dodgeDirection = 1;
+          _aiDecision = 'AI EVASIVE DODGE: SWERVING TO RIGHT LANE';
+          _aiDecisionColor = const Color(0xFFEA580C);
+        }
+      }
+    } else {
+      // Path Clear or Lateral Offset Safe
+      _isEmergencyBraking = false;
+      _isDodging = false;
+      _dodgeDirection = 0;
+      _trainedCarSpeed = 60.0;
+
+      // Gradually return to Center Cruise Lane (Lane 2) when threat is clear
+      if (_interactiveCarType != 'ambulance' && distMeters > 30.0) {
+        _trainedCarLaneOffset = 0.0;
+      }
+
+      if (_liveTrustScore < 40.0) {
+        _aiDecision = 'MALICIOUS NODE FLAGGED: SAFE BUFFER MAINTAINED';
+        _aiDecisionColor = const Color(0xFFDC2626);
+      } else {
+        _aiDecision = 'NORMAL CRUISE: SAFE HEADWAY VERIFIED';
+        _aiDecisionColor = const Color(0xFF059669);
+      }
+    }
+
+    // Smooth physical position interpolation (spring damping)
+    _trainedCarCurrentX += (_trainedCarLaneOffset - _trainedCarCurrentX) * 0.14;
+
+    setState(() {});
+  }
+
+  // --- Touch & Drag Handlers ---
+  void _onPanStart(DragStartDetails details) {
+    _isDragging = true;
+    _interactiveCarPos = details.localPosition;
+    setState(() {});
+  }
+
+  void _onPanUpdate(DragUpdateDetails details) {
+    _interactiveCarPos = details.localPosition;
+    setState(() {});
+  }
+
+  void _onPanEnd(DragEndDetails details) {
+    _isDragging = false;
+    setState(() {});
+  }
+
+  // --- D-Pad Steering Triggers ---
+  void _moveCar(double dX, double dY) {
+    if (_interactiveCarPos == null) return;
+    setState(() {
+      _interactiveCarPos = Offset(
+        (_interactiveCarPos!.dx + dX).clamp(40.0, MediaQuery.of(context).size.width - 40.0),
+        (_interactiveCarPos!.dy + dY).clamp(80.0, MediaQuery.of(context).size.height - 120.0),
+      );
+    });
+  }
+
+  void _selectVehicleType(String type, String label, double speed) {
+    setState(() {
+      _interactiveCarType = type;
+      _interactiveCarLabel = label;
+      _interactiveCarSpeed = speed;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final driverState = ref.watch(driverProvider);
+    final size = MediaQuery.of(context).size;
+    final cx = size.width * 0.5;
+
+    // Relative distance calculation
+    final playerPos = Offset(cx + _trainedCarCurrentX, size.height * 0.55);
+    final targetPos = _interactiveCarPos ?? Offset(cx, size.height * 0.32);
+    final distMeters = (math.sqrt(math.pow(targetPos.dx - playerPos.dx, 2) + math.pow(targetPos.dy - playerPos.dy, 2)) / 4.5).clamp(2.0, 150.0);
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // Interactive VANET Simulation Canvas
-          AnimatedBuilder(
-            animation: _animController,
-            builder: (context, child) {
-              final cycle = _animController.value;
-              final autoState = _getAutonomousState(cycle);
-
-              return SizedBox.expand(
-                child: CustomPaint(
-                  painter: _VanetSimulationPainter(
-                    cycle: cycle,
-                    autoState: autoState,
-                    baseTrust: driverState.trustScore,
-                  ),
-                ),
-              );
-            },
-          ),
-
-          // TOP STEP-BY-STEP PROGRESS & EXPLANATION BANNER
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
-              child: AnimatedBuilder(
-                animation: _animController,
-                builder: (context, child) {
-                  final cycle = _animController.value;
-                  final autoState = _getAutonomousState(cycle);
-
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // 1. Live Step Header Card
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.06),
-                              blurRadius: 14,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            if (Navigator.canPop(context)) ...[
-                              IconButton(
-                                icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A), size: 22),
-                                tooltip: 'Back',
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                                onPressed: () => Navigator.pop(context),
-                              ),
-                              const SizedBox(width: 10),
-                            ],
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: autoState.stepColor.withValues(alpha: 0.12),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(autoState.stepIcon, color: autoState.stepColor, size: 22),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: autoState.stepColor.withValues(alpha: 0.15),
-                                          borderRadius: BorderRadius.circular(6),
-                                        ),
-                                        child: Text(
-                                          autoState.stepTag,
-                                          style: GoogleFonts.outfit(
-                                            color: autoState.stepColor,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        'V2X SMART HIGHWAY',
-                                        style: GoogleFonts.outfit(
-                                          fontSize: 10.5,
-                                          color: const Color(0xFF64748B),
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 3),
-                                  Text(
-                                    autoState.headline,
-                                    style: GoogleFonts.outfit(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13.5,
-                                      color: const Color(0xFF0F172A),
-                                    ),
-                                  ),
-                                  Text(
-                                    autoState.subtext,
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 11,
-                                      color: const Color(0xFF475569),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            // Pause / Resume Button
-                            IconButton(
-                              icon: Icon(
-                                _isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
-                                color: const Color(0xFFE45D3F),
-                                size: 22,
-                              ),
-                              tooltip: _isPaused ? 'Resume Simulation' : 'Pause Simulation',
-                              onPressed: _togglePlayPause,
-                            ),
-                            const SizedBox(width: 4),
-                            // Interactive Scenario & Direction Spawner
-                            ElevatedButton.icon(
-                              onPressed: _showScenarioDirectionPicker,
-                              icon: const Icon(Icons.add_road_rounded, size: 15),
-                              label: Text(_activeScenarioType != null ? 'Scenario Active' : 'Add Vehicle'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFE45D3F),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                textStyle: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            if (_activeScenarioType != null) ...[
-                              const SizedBox(width: 4),
-                              IconButton(
-                                icon: const Icon(Icons.refresh_rounded, size: 20, color: Color(0xFF64748B)),
-                                tooltip: 'Reset to Continuous Loop',
-                                onPressed: () {
-                                  setState(() {
-                                    _activeScenarioType = null;
-                                  });
-                                },
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 8),
-
-                      // 2. 5-Step Pipeline Indicators
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                        ),
-                        child: Row(
-                          children: [
-                            _stepPill('1. V2X Cruise', autoState.stepIndex == 1),
-                            const Icon(Icons.chevron_right_rounded, size: 14, color: Color(0xFF94A3B8)),
-                            _stepPill('2. Obstacle Alert', autoState.stepIndex == 2),
-                            const Icon(Icons.chevron_right_rounded, size: 14, color: Color(0xFF94A3B8)),
-                            _stepPill('3. Siren Preempt', autoState.stepIndex == 3),
-                            const Icon(Icons.chevron_right_rounded, size: 14, color: Color(0xFF94A3B8)),
-                            _stepPill('4. Detour Yield', autoState.stepIndex == 4),
-                            const Icon(Icons.chevron_right_rounded, size: 14, color: Color(0xFF94A3B8)),
-                            _stepPill('5. Trust Rewarded', autoState.stepIndex == 5),
-                          ],
-                        ),
-                      ),
-                    ],
-                  );
-                },
+          // 1. INTERACTIVE TOUCH CANVAS: Drag & Steer test car across highway
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onPanStart: _onPanStart,
+            onPanUpdate: _onPanUpdate,
+            onPanEnd: _onPanEnd,
+            child: CustomPaint(
+              size: Size.infinite,
+              painter: _VanetInteractivePainter(
+                cycle: _animController.value,
+                trainedCarX: _trainedCarCurrentX,
+                trainedCarSpeed: _trainedCarSpeed,
+                isBraking: _isEmergencyBraking,
+                isDodging: _isDodging,
+                dodgeDirection: _dodgeDirection,
+                testCarPos: targetPos,
+                testCarType: _interactiveCarType,
+                testCarLabel: _interactiveCarLabel,
+                testCarTrust: _liveTrustScore,
+                isDragging: _isDragging,
+                baseTrust: driverState.trustScore,
               ),
             ),
           ),
 
-          // 📊 BOTTOM REAL-TIME VANET METRICS HUD
+          // 2. TOP AI STATUS & INTERACTIVE ACTION HEADER
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Main AI Header Card
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.06),
+                          blurRadius: 14,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: _aiDecisionColor.withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            _isEmergencyBraking
+                                ? Icons.warning_rounded
+                                : (_isDodging ? Icons.swap_horiz_rounded : Icons.verified_user_rounded),
+                            color: _aiDecisionColor,
+                            size: 22,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: _aiDecisionColor.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      _isEmergencyBraking
+                                          ? 'EMERGENCY ACTION'
+                                          : (_isDodging ? 'AUTONOMOUS REACTION' : 'ONLINE MONITORING'),
+                                      style: GoogleFonts.outfit(
+                                        color: _aiDecisionColor,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'HOST (TRAINED)',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 10.5,
+                                      color: const Color(0xFF7C3AED),
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                _aiDecision,
+                                style: GoogleFonts.outfit(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13.0,
+                                  color: const Color(0xFF0F172A),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                'Distance: ${distMeters.toStringAsFixed(1)}m | Host Speed: ${_trainedCarSpeed.toStringAsFixed(0)} km/h',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 11,
+                                  color: const Color(0xFF475569),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Spawn / Change Vehicle Button
+                        ElevatedButton.icon(
+                          onPressed: _showVehiclePickerModal,
+                          icon: const Icon(Icons.add_road_rounded, size: 15),
+                          label: const Text('Add Vehicle'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFE45D3F),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            textStyle: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Real Mathematical Trust & Anomaly Inspector Bar
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _formulaPill('BETA TRUST', 'T = ${_alpha.toInt()} / (${_alpha.toInt()} + ${_beta.toInt()}) = ${_liveTrustScore.toStringAsFixed(0)}%', _liveTrustScore >= 75 ? const Color(0xFF059669) : const Color(0xFFDC2626)),
+                        Container(height: 20, width: 1, color: const Color(0xFFE2E8F0)),
+                        _formulaPill('AI CLASSIFIER', _liveTrustScore >= 75 ? 'TRUSTED (CAM Valid)' : (_liveTrustScore >= 40 ? 'SUSPICIOUS (Outlier)' : 'ROGUE (Blacklisted)'), _liveTrustScore >= 75 ? const Color(0xFF059669) : const Color(0xFFDC2626)),
+                        Container(height: 20, width: 1, color: const Color(0xFFE2E8F0)),
+                        _formulaPill('TOUCH CONTROL', _isDragging ? 'DRAGGING ACTIVE' : 'TOUCH TO DRAG', const Color(0xFF0284C7)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // 3. FLOATING ON-SCREEN STEERING CONTROLS (D-PAD)
+          if (_showDpad)
+            Positioned(
+              right: 14,
+              bottom: 84,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.94),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.10),
+                      blurRadius: 14,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'STEER / DODGE TEST',
+                      style: GoogleFonts.outfit(fontSize: 9, fontWeight: FontWeight.bold, color: const Color(0xFF64748B)),
+                    ),
+                    const SizedBox(height: 4),
+                    // Forward
+                    _dpadBtn(Icons.arrow_upward_rounded, () => _moveCar(0, -35), 'Forward'),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Left Cut
+                        _dpadBtn(Icons.arrow_back_rounded, () => _moveCar(-45, 0), 'Cut Left'),
+                        const SizedBox(width: 8),
+                        // Right Cut
+                        _dpadBtn(Icons.arrow_forward_rounded, () => _moveCar(45, 0), 'Cut Right'),
+                      ],
+                    ),
+                    // Reverse / Cut in front
+                    _dpadBtn(Icons.arrow_downward_rounded, () => _moveCar(0, 35), 'Cut Behind'),
+                  ],
+                ),
+              ),
+            ),
+
+          // 4. BOTTOM VANET HIGHWAY METRICS HUD
           Positioned(
             bottom: 14,
             left: 14,
             right: 14,
-            child: AnimatedBuilder(
-              animation: _animController,
-              builder: (context, child) {
-                final cycle = _animController.value;
-                final autoState = _getAutonomousState(cycle);
-                final trustDisplay = ((driverState.trustScore + autoState.trustBonus).clamp(0.0, 1.0) * 100).toInt();
-
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 16,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _statTile('NETWORK STATUS', autoState.rsuStatus, autoState.rsuColor, Icons.sensors_rounded),
-                      Container(height: 32, width: 1, color: const Color(0xFFE2E8F0)),
-                      _statTile('V2V BEACON', autoState.v2vPacketStatus, const Color(0xFF0284C7), Icons.wifi_tethering_rounded),
-                      Container(height: 32, width: 1, color: const Color(0xFFE2E8F0)),
-                      _statTile('ROAD HAZARD', autoState.hazardStatus, autoState.hazardColor, Icons.warning_amber_rounded),
-                      Container(height: 32, width: 1, color: const Color(0xFFE2E8F0)),
-                      _statTile('AMBULANCE', autoState.ambulanceStatus, autoState.ambulanceColor, Icons.local_hospital_rounded),
-                      Container(height: 32, width: 1, color: const Color(0xFFE2E8F0)),
-                      _statTile('DYNAMIC TRUST', '$trustDisplay% Trust', const Color(0xFF10B981), Icons.verified_user_rounded),
-                    ],
-                  ),
-                );
-              },
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _statTile('TARGET NODE', _interactiveCarLabel.split(' ').first, const Color(0xFF0F172A), Icons.directions_car_rounded),
+                  Container(height: 28, width: 1, color: const Color(0xFFE2E8F0)),
+                  _statTile('DISTANCE', '${distMeters.toStringAsFixed(1)} m', distMeters < 12 ? const Color(0xFFDC2626) : const Color(0xFF0284C7), Icons.straighten_rounded),
+                  Container(height: 28, width: 1, color: const Color(0xFFE2E8F0)),
+                  _statTile('EVALUATED TRUST', '${_liveTrustScore.toStringAsFixed(0)}%', _liveTrustScore >= 75 ? const Color(0xFF059669) : const Color(0xFFDC2626), Icons.shield_rounded),
+                  Container(height: 28, width: 1, color: const Color(0xFFE2E8F0)),
+                  _statTile('AI REACTION', _isEmergencyBraking ? 'BRAKING' : (_isDodging ? 'DODGING' : 'CRUISING'), _isEmergencyBraking ? const Color(0xFFDC2626) : (_isDodging ? const Color(0xFFEA580C) : const Color(0xFF059669)), Icons.psychology_rounded),
+                ],
+              ),
             ),
           ),
         ],
@@ -293,23 +475,29 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
     );
   }
 
-  Widget _stepPill(String title, bool isActive) {
-    return Expanded(
+  Widget _formulaPill(String title, String val, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(title, style: GoogleFonts.outfit(fontSize: 9, fontWeight: FontWeight.bold, color: const Color(0xFF94A3B8))),
+        const SizedBox(height: 1),
+        Text(val, style: GoogleFonts.outfit(fontSize: 10.5, fontWeight: FontWeight.bold, color: color)),
+      ],
+    );
+  }
+
+  Widget _dpadBtn(IconData icon, VoidCallback onTap, String tooltip) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.all(7),
         decoration: BoxDecoration(
-          color: isActive ? const Color(0xFF0284C7) : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
+          color: const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(10),
         ),
-        alignment: Alignment.center,
-        child: Text(
-          title,
-          style: GoogleFonts.outfit(
-            fontSize: 10,
-            fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
-            color: isActive ? Colors.white : const Color(0xFF64748B),
-          ),
-        ),
+        child: Icon(icon, size: 20, color: const Color(0xFF334155)),
       ),
     );
   }
@@ -324,16 +512,16 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
           children: [
             Icon(icon, size: 12, color: const Color(0xFF64748B)),
             const SizedBox(width: 4),
-            Text(label, style: GoogleFonts.outfit(color: const Color(0xFF64748B), fontSize: 9.5, fontWeight: FontWeight.bold)),
+            Text(label, style: GoogleFonts.outfit(color: const Color(0xFF64748B), fontSize: 9.0, fontWeight: FontWeight.bold)),
           ],
         ),
         const SizedBox(height: 2),
-        Text(value, style: GoogleFonts.outfit(color: color, fontSize: 12.0, fontWeight: FontWeight.bold)),
+        Text(value, style: GoogleFonts.outfit(color: color, fontSize: 11.5, fontWeight: FontWeight.bold)),
       ],
     );
   }
 
-  void _showScenarioDirectionPicker() {
+  void _showVehiclePickerModal() {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
@@ -341,105 +529,76 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
-        return StatefulBuilder(
-          builder: (sheetCtx, setSheetState) {
-            return SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Spawn Vehicle & Test VANET Reaction',
-                      style: GoogleFonts.outfit(fontSize: 17, fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      'Select an incoming direction and vehicle behavior to observe automated VANET actions.',
-                      style: GoogleFonts.outfit(fontSize: 12, color: const Color(0xFF64748B)),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      '1. SELECT APPROACH DIRECTION',
-                      style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.bold, color: const Color(0xFFE45D3F), letterSpacing: 0.5),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _dirChip('Rear Lane (South)', 'Behind You', setSheetState),
-                        _dirChip('Forward Lane (North)', 'Ahead of You', setSheetState),
-                        _dirChip('Oncoming Lane', 'Passing Opposite', setSheetState),
-                        _dirChip('Intersection Merge', 'Cross Traffic', setSheetState),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      '2. SELECT VEHICLE & THREAT SCENARIO',
-                      style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.bold, color: const Color(0xFFE45D3F), letterSpacing: 0.5),
-                    ),
-                    const SizedBox(height: 8),
-                    _scenarioTile(
-                      icon: Icons.local_hospital_rounded,
-                      color: const Color(0xFFE45D3F),
-                      title: 'Emergency Ambulance (AMB-1122)',
-                      subtitle: 'Basis: PKI token verified. Automated Action: Vehicles yield to right; Green wave active.',
-                      type: 'ambulance',
-                    ),
-                    _scenarioTile(
-                      icon: Icons.speed_rounded,
-                      color: const Color(0xFFF59E0B),
-                      title: 'Speed Anomaly Attacker (145 km/h)',
-                      subtitle: 'Basis: dv/dt > 8.0 m/s2. Automated Action: Collision buffer increased; Trust drops to 28%.',
-                      type: 'speed_attack',
-                    ),
-                    _scenarioTile(
-                      icon: Icons.warning_rounded,
-                      color: const Color(0xFFEA580C),
-                      title: 'Road Hazard / Crash Obstacle',
-                      subtitle: 'Basis: Impact sensor broadcast. Automated Action: Network activates dynamic detour lane.',
-                      type: 'crash',
-                    ),
-                    _scenarioTile(
-                      icon: Icons.check_circle_rounded,
-                      color: const Color(0xFF059669),
-                      title: 'Compliant Civilian Car (CIV-204)',
-                      subtitle: 'Basis: Valid 10Hz CAM. Automated Action: Cooperative Adaptive Cruise safe headway.',
-                      type: 'civilian',
-                    ),
-                  ],
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Select Test Vehicle to Challenge Trained Car',
+                  style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A)),
                 ),
-              ),
-            );
-          },
+                Text(
+                  'Drag the selected car on screen towards V-101 to see how its AI model evaluates trust and triggers evasive actions.',
+                  style: GoogleFonts.outfit(fontSize: 12, color: const Color(0xFF64748B)),
+                ),
+                const SizedBox(height: 16),
+                _pickerOption(
+                  icon: Icons.speed_rounded,
+                  color: const Color(0xFFDC2626),
+                  title: 'Speed Anomaly Attacker (ATK-707)',
+                  subtitle: 'Velocity: 140 km/h | dv/dt > 8.5 m/s2 | AI Trust: 25% (Untrusted)',
+                  onTap: () {
+                    _selectVehicleType('speed_attack', 'ATK-707 (Speed Anomaly)', 140.0);
+                    Navigator.pop(ctx);
+                  },
+                ),
+                _pickerOption(
+                  icon: Icons.gps_off_rounded,
+                  color: const Color(0xFF991B1B),
+                  title: 'Position Spoofing Rogue (GHOST-909)',
+                  subtitle: 'Coordinates jump 65m | GPS Plausibility Failure | AI Trust: 15% (Rogue)',
+                  onTap: () {
+                    _selectVehicleType('gps_spoof', 'GHOST-909 (GPS Spoof)', 70.0);
+                    Navigator.pop(ctx);
+                  },
+                ),
+                _pickerOption(
+                  icon: Icons.local_hospital_rounded,
+                  color: const Color(0xFF0284C7),
+                  title: 'Emergency Ambulance (AMB-1122)',
+                  subtitle: 'PKI Signed Siren Beacon | Preemption Active | AI Trust: 99% (Priority)',
+                  onTap: () {
+                    _selectVehicleType('ambulance', 'AMB-1122 (Ambulance)', 95.0);
+                    Navigator.pop(ctx);
+                  },
+                ),
+                _pickerOption(
+                  icon: Icons.check_circle_rounded,
+                  color: const Color(0xFF059669),
+                  title: 'Cooperative Civilian Vehicle (CIV-204)',
+                  subtitle: 'Normal 10Hz CAMs | Compliant Headway | AI Trust: 94% (Trusted)',
+                  onTap: () {
+                    _selectVehicleType('civilian', 'CIV-204 (Civilian)', 55.0);
+                    Navigator.pop(ctx);
+                  },
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
   }
 
-  Widget _dirChip(String dirValue, String label, StateSetter setSheetState) {
-    final isSelected = _activeDirection == dirValue;
-    return ChoiceChip(
-      label: Text(label, style: GoogleFonts.outfit(fontSize: 12, fontWeight: isSelected ? FontWeight.bold : FontWeight.w500)),
-      selected: isSelected,
-      selectedColor: const Color(0xFFE45D3F).withValues(alpha: 0.15),
-      labelStyle: TextStyle(color: isSelected ? const Color(0xFFE45D3F) : const Color(0xFF334155)),
-      onSelected: (val) {
-        if (val) {
-          setSheetState(() => _activeDirection = dirValue);
-          setState(() => _activeDirection = dirValue);
-        }
-      },
-    );
-  }
-
-  Widget _scenarioTile({
+  Widget _pickerOption({
     required IconData icon,
     required Color color,
     required String title,
     required String subtitle,
-    required String type,
+    required VoidCallback onTap,
   }) {
     return ListTile(
       dense: true,
@@ -452,359 +611,48 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
       title: Text(title, style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13)),
       subtitle: Text(subtitle, style: GoogleFonts.outfit(fontSize: 11, color: const Color(0xFF64748B))),
       trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Color(0xFF94A3B8)),
-      onTap: () {
-        Navigator.pop(context);
-        setState(() {
-          _activeScenarioType = type;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: const Color(0xFF0F172A),
-            behavior: SnackBarBehavior.floating,
-            content: Text('Injected: $title from $_activeDirection'),
-          ),
-        );
-      },
+      onTap: onTap,
     );
   }
-
-  // Autonomous VANET State Machine (15-second continuous cycle or Injected Scenario)
-  _AutoState _getAutonomousState(double cycle) {
-    // If user specifically selected a custom scenario from any direction:
-    if (_activeScenarioType != null) {
-      if (_activeScenarioType == 'ambulance') {
-        return _AutoState(
-          stepIndex: 3,
-          stepTag: 'SIREN PREEMPTION ($_activeDirection)',
-          headline: 'Ambulance (AMB-1122) Approaching from $_activeDirection',
-          subtext: 'Basis: PKI Signature Valid. VANET Reaction: Host car yields to right detour lane; Green wave active.',
-          stepIcon: Icons.local_hospital_rounded,
-          stepColor: const Color(0xFFDC2626),
-          playerLaneTarget: 1.0,
-          isObstacleVisible: true,
-          isDetourActive: true,
-          isAmbulanceVisible: true,
-          ambulanceYProgress: 0.65 - (cycle * 0.4),
-          isBlinkerActive: true,
-          isSignalBlinkingRed: true,
-          isCorridorActive: true,
-          rsuStatus: 'Preemption Mode',
-          rsuColor: const Color(0xFFDC2626),
-          v2vPacketStatus: 'V2V Priority Siren',
-          hazardStatus: 'Corridor Yield Active',
-          hazardColor: const Color(0xFF059669),
-          ambulanceStatus: 'Approaching ($_activeDirection)',
-          ambulanceColor: const Color(0xFFDC2626),
-          signalStatus: 'Hold Cross-Traffic',
-          signalColor: const Color(0xFFDC2626),
-          trustBonus: 0.02,
-        );
-      } else if (_activeScenarioType == 'speed_attack') {
-        return _AutoState(
-          stepIndex: 2,
-          stepTag: 'KINEMATIC ATTACK ($_activeDirection)',
-          headline: 'Speeding Attacker (ATK-901 at 145 km/h) from $_activeDirection',
-          subtext: 'Basis: dv/dt > 8.0 m/s2, speed exceeds sector limit. VANET Reaction: Collision buffer expanded; Trust drops to 28%.',
-          stepIcon: Icons.speed_rounded,
-          stepColor: const Color(0xFFF59E0B),
-          playerLaneTarget: 0.0,
-          isObstacleVisible: false,
-          isDetourActive: false,
-          isAmbulanceVisible: false,
-          ambulanceYProgress: 1.5,
-          isBlinkerActive: false,
-          isSignalBlinkingRed: false,
-          isCorridorActive: false,
-          rsuStatus: 'Attacker Flagged (-42%)',
-          rsuColor: const Color(0xFFDC2626),
-          v2vPacketStatus: 'Misbehavior Alert',
-          hazardStatus: 'Collision Warning',
-          hazardColor: const Color(0xFFF59E0B),
-          ambulanceStatus: 'ATK-901 (145 km/h)',
-          ambulanceColor: const Color(0xFFDC2626),
-          signalStatus: 'Advisory Slow',
-          signalColor: const Color(0xFFF59E0B),
-          trustBonus: 0.0,
-        );
-      } else if (_activeScenarioType == 'crash') {
-        return _AutoState(
-          stepIndex: 2,
-          stepTag: 'ROAD HAZARD ($_activeDirection)',
-          headline: 'Crash / Broken Vehicle in Lane 1 ($_activeDirection)',
-          subtext: 'Basis: Stationary sensor trigger. VANET Reaction: Dynamic detour arrows activate; Host vehicle steers into right bypass lane.',
-          stepIcon: Icons.warning_rounded,
-          stepColor: const Color(0xFFDC2626),
-          playerLaneTarget: 0.8,
-          isObstacleVisible: true,
-          isDetourActive: true,
-          isAmbulanceVisible: false,
-          ambulanceYProgress: 1.5,
-          isBlinkerActive: true,
-          isSignalBlinkingRed: false,
-          isCorridorActive: false,
-          rsuStatus: 'DENM Broadcast',
-          rsuColor: const Color(0xFFF59E0B),
-          v2vPacketStatus: 'DENM Hazard Alert',
-          hazardStatus: 'Lane 1 Blocked (Crash)',
-          hazardColor: const Color(0xFFDC2626),
-          ambulanceStatus: 'None in Range',
-          ambulanceColor: const Color(0xFF64748B),
-          signalStatus: 'Slow / Detour',
-          signalColor: const Color(0xFFF59E0B),
-          trustBonus: 0.0,
-        );
-      } else {
-        return _AutoState(
-          stepIndex: 1,
-          stepTag: 'COMPLIANT TRAFFIC ($_activeDirection)',
-          headline: 'Certified Civilian Node (CIV-204) from $_activeDirection',
-          subtext: 'Basis: Valid 10Hz CAM, legal velocity, certified PKI. VANET Reaction: Cooperative Adaptive Cruise keeps 3s safety headway.',
-          stepIcon: Icons.check_circle_rounded,
-          stepColor: const Color(0xFF059669),
-          playerLaneTarget: 0.0,
-          isObstacleVisible: false,
-          isDetourActive: false,
-          isAmbulanceVisible: false,
-          ambulanceYProgress: 1.5,
-          isBlinkerActive: false,
-          isSignalBlinkingRed: false,
-          isCorridorActive: false,
-          rsuStatus: 'Certified 5.9 GHz',
-          rsuColor: const Color(0xFF059669),
-          v2vPacketStatus: '10Hz CAM Verified',
-          hazardStatus: 'Road Clear',
-          hazardColor: const Color(0xFF059669),
-          ambulanceStatus: 'None in Range',
-          ambulanceColor: const Color(0xFF64748B),
-          signalStatus: 'Green (Clear)',
-          signalColor: const Color(0xFF059669),
-          trustBonus: 0.01,
-        );
-      }
-    }
-    if (cycle < 0.20) {
-      // 0.0 - 0.20 (0s - 3s): Phase 1: Normal Cruise
-      return _AutoState(
-        stepIndex: 1,
-        stepTag: 'STEP 1: V2X COOPERATIVE CRUISE',
-        headline: 'Cooperative Cruising with Regular Traffic',
-        subtext: 'Vehicle (V-101) exchanges 10Hz CAM beacons across the network.',
-        stepIcon: Icons.wifi_rounded,
-        stepColor: const Color(0xFF059669),
-        playerLaneTarget: 0.0, // Center Lane
-        isObstacleVisible: false,
-        isDetourActive: false,
-        isAmbulanceVisible: false,
-        ambulanceYProgress: 1.5,
-        isBlinkerActive: false,
-        isSignalBlinkingRed: false,
-        isCorridorActive: false,
-        rsuStatus: 'Online (5.9 GHz)',
-        rsuColor: const Color(0xFF059669),
-        v2vPacketStatus: '10 Hz CAM (Normal)',
-        hazardStatus: 'Lane 1 Clear',
-        hazardColor: const Color(0xFF059669),
-        ambulanceStatus: 'None in Range',
-        ambulanceColor: const Color(0xFF64748B),
-        signalStatus: 'Green (Clear)',
-        signalColor: const Color(0xFF059669),
-        trustBonus: 0.0,
-      );
-    } else if (cycle < 0.40) {
-      // 0.20 - 0.40 (3s - 6s): Phase 2: Accident Obstacle Detected Ahead in Lane 1!
-      return _AutoState(
-        stepIndex: 2,
-        stepTag: 'STEP 2: ROAD HAZARD DETECTED',
-        headline: 'Lane 1 Blocked by Crash - DENM Hazard Alert',
-        subtext: 'Crash detected at km 4.2. Network broadcasts emergency detour.',
-        stepIcon: Icons.warning_rounded,
-        stepColor: const Color(0xFFF59E0B),
-        playerLaneTarget: 0.3, // Begins drifting right
-        isObstacleVisible: true,
-        isDetourActive: true,
-        isAmbulanceVisible: false,
-        ambulanceYProgress: 1.5,
-        isBlinkerActive: true,
-        isSignalBlinkingRed: false,
-        isCorridorActive: false,
-        rsuStatus: 'DENM Broadcast',
-        rsuColor: const Color(0xFFF59E0B),
-        v2vPacketStatus: 'DENM Hazard Alert',
-        hazardStatus: 'Lane 1 Blocked (Crash)',
-        hazardColor: const Color(0xFFDC2626),
-        ambulanceStatus: 'Dispatched (400m)',
-        ambulanceColor: const Color(0xFFF59E0B),
-        signalStatus: 'Advisory Slow',
-        signalColor: const Color(0xFFF59E0B),
-        trustBonus: 0.0,
-      );
-    } else if (cycle < 0.65) {
-      // 0.40 - 0.65 (6s - 9.7s): Phase 3: Ambulance Approaching Fast with Siren & Preemption
-      final approach = (cycle - 0.40) / 0.25;
-      final distMeters = (60.0 - (approach * 35.0)).toInt();
-
-      return _AutoState(
-        stepIndex: 3,
-        stepTag: 'STEP 3: EMERGENCY SIREN DETECTED',
-        headline: 'Emergency Ambulance Behind You (${distMeters}m) - V2V Siren Alert',
-        subtext: 'AMB-1122 requests priority corridor. Overhead signal gantry blinks red for holding.',
-        stepIcon: Icons.notifications_active_rounded,
-        stepColor: const Color(0xFFDC2626),
-        playerLaneTarget: 0.5 + (approach * 0.4), // Shifting to right yield lane
-        isObstacleVisible: true,
-        isDetourActive: true,
-        isAmbulanceVisible: true,
-        ambulanceYProgress: 0.90 - (approach * 0.32),
-        isBlinkerActive: true,
-        isSignalBlinkingRed: true,
-        isCorridorActive: true,
-        rsuStatus: 'Preemption Mode',
-        rsuColor: const Color(0xFFDC2626),
-        v2vPacketStatus: 'Priority V2V Request',
-        hazardStatus: 'Detour Active',
-        hazardColor: const Color(0xFFDC2626),
-        ambulanceStatus: 'Behind You (${distMeters}m)',
-        ambulanceColor: const Color(0xFFDC2626),
-        signalStatus: 'Blinking Red (Hold)',
-        signalColor: const Color(0xFFDC2626),
-        trustBonus: 0.01,
-      );
-    } else if (cycle < 0.85) {
-      // 0.65 - 0.85 (9.7s - 12.7s): Phase 4: Ambulance Sweeps Through Cleared Corridor at 95 km/h
-      final passProgress = (cycle - 0.65) / 0.20;
-      final ambY = 0.58 - (passProgress * 0.95);
-
-      return _AutoState(
-        stepIndex: 4,
-        stepTag: 'STEP 4: COOPERATIVE DETOUR & PASS',
-        headline: 'Corridor Cleared - Ambulance Speeds Past (95 km/h)',
-        subtext: 'Cooperative driving verified via V2V. Express green corridor kept unobstructed.',
-        stepIcon: Icons.bolt_rounded,
-        stepColor: const Color(0xFF059669),
-        playerLaneTarget: 1.0, // Fully yielded in right detour lane
-        isObstacleVisible: true,
-        isDetourActive: true,
-        isAmbulanceVisible: true,
-        ambulanceYProgress: ambY,
-        isBlinkerActive: false,
-        isSignalBlinkingRed: true,
-        isCorridorActive: true,
-        rsuStatus: 'Corridor Active',
-        rsuColor: const Color(0xFF059669),
-        v2vPacketStatus: 'V2V Yield Verified',
-        hazardStatus: 'Bypassing Crash',
-        hazardColor: const Color(0xFF059669),
-        ambulanceStatus: 'Passing (95 km/h)',
-        ambulanceColor: const Color(0xFF059669),
-        signalStatus: 'Green Wave Active',
-        signalColor: const Color(0xFF059669),
-        trustBonus: 0.02,
-      );
-    } else {
-      // 0.85 - 1.0 (12.7s - 15s): Phase 5: Normal Navigation Resumes & Trust Reward
-      final returnProgress = 1.0 - ((cycle - 0.85) / 0.15).clamp(0.0, 1.0);
-
-      return _AutoState(
-        stepIndex: 5,
-        stepTag: 'STEP 5: TRUST REWARD & RESUME',
-        headline: 'Corridor Cleared - Dynamic Trust Score Rewarded (+2% Bonus)',
-        subtext: 'Ambulance cleared the accident zone safely. Signals normalize, normal traffic resumes.',
-        stepIcon: Icons.verified_user_rounded,
-        stepColor: const Color(0xFFE45D3F),
-        playerLaneTarget: returnProgress, // Returning to center lane
-        isObstacleVisible: false,
-        isDetourActive: false,
-        isAmbulanceVisible: false,
-        ambulanceYProgress: -0.5,
-        isBlinkerActive: false,
-        isSignalBlinkingRed: false,
-        isCorridorActive: false,
-        rsuStatus: 'Normal (100% OK)',
-        rsuColor: const Color(0xFF059669),
-        v2vPacketStatus: 'CAM Broadcast',
-        hazardStatus: 'Incident Cleared',
-        hazardColor: const Color(0xFF059669),
-        ambulanceStatus: 'Passed Ahead',
-        ambulanceColor: const Color(0xFF059669),
-        signalStatus: 'Green (Normal)',
-        signalColor: const Color(0xFF059669),
-        trustBonus: 0.02,
-      );
-    }
-  }
 }
 
-class _AutoState {
-  final int stepIndex;
-  final String stepTag;
-  final String headline;
-  final String subtext;
-  final IconData stepIcon;
-  final Color stepColor;
-  final double playerLaneTarget; // 0.0: Center, 1.0: Right
-  final bool isObstacleVisible;
-  final bool isDetourActive;
-  final bool isAmbulanceVisible;
-  final double ambulanceYProgress;
-  final bool isBlinkerActive;
-  final bool isSignalBlinkingRed;
-  final bool isCorridorActive;
-  final String rsuStatus;
-  final Color rsuColor;
-  final String v2vPacketStatus;
-  final String hazardStatus;
-  final Color hazardColor;
-  final String ambulanceStatus;
-  final Color ambulanceColor;
-  final String signalStatus;
-  final Color signalColor;
-  final double trustBonus;
-
-  _AutoState({
-    required this.stepIndex,
-    required this.stepTag,
-    required this.headline,
-    required this.subtext,
-    required this.stepIcon,
-    required this.stepColor,
-    required this.playerLaneTarget,
-    required this.isObstacleVisible,
-    required this.isDetourActive,
-    required this.isAmbulanceVisible,
-    required this.ambulanceYProgress,
-    required this.isBlinkerActive,
-    required this.isSignalBlinkingRed,
-    required this.isCorridorActive,
-    required this.rsuStatus,
-    required this.rsuColor,
-    required this.v2vPacketStatus,
-    required this.hazardStatus,
-    required this.hazardColor,
-    required this.ambulanceStatus,
-    required this.ambulanceColor,
-    required this.signalStatus,
-    required this.signalColor,
-    required this.trustBonus,
-  });
-}
-
-// Comprehensive VANET Smart Highway Custom Painter
-class _VanetSimulationPainter extends CustomPainter {
+// ============================================================================
+// Real-Time VANET Interactive Highway Custom Painter
+// ============================================================================
+class _VanetInteractivePainter extends CustomPainter {
   final double cycle;
-  final _AutoState autoState;
+  final double trainedCarX;
+  final double trainedCarSpeed;
+  final bool isBraking;
+  final bool isDodging;
+  final int dodgeDirection;
+  final Offset testCarPos;
+  final String testCarType;
+  final String testCarLabel;
+  final double testCarTrust;
+  final bool isDragging;
   final double baseTrust;
 
-  _VanetSimulationPainter({
+  _VanetInteractivePainter({
     required this.cycle,
-    required this.autoState,
+    required this.trainedCarX,
+    required this.trainedCarSpeed,
+    required this.isBraking,
+    required this.isDodging,
+    required this.dodgeDirection,
+    required this.testCarPos,
+    required this.testCarType,
+    required this.testCarLabel,
+    required this.testCarTrust,
+    required this.isDragging,
     required this.baseTrust,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final cx = size.width * 0.5; // Perfectly centered smart highway
+    final cx = size.width * 0.5;
 
-    // 1. Terrain Grass (Clean Light Green Lawn on both sides)
+    // 1. Terrain Grass Lawn
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), Paint()..color = const Color(0xFFF0FDF4));
 
     // 2. 3-Lane Smart Highway (340px wide)
@@ -813,308 +661,120 @@ class _VanetSimulationPainter extends CustomPainter {
     // Lane 3 (Detour / Yield): cx + 110
     const double roadWidth = 340.0;
     final roadRect = Rect.fromCenter(center: Offset(cx, size.height * 0.5), width: roadWidth, height: size.height);
-    canvas.drawRect(roadRect, Paint()..color = const Color(0xFF334155)); // Crisp asphalt dark slate
+    canvas.drawRect(roadRect, Paint()..color = const Color(0xFF334155));
 
-    // Highway Concrete Curbs & Shoulder markings
+    // Highway Curbs
     final curbPaint = Paint()..color = const Color(0xFFCBD5E1)..strokeWidth = 4.0;
     canvas.drawLine(Offset(cx - roadWidth * 0.5, 0), Offset(cx - roadWidth * 0.5, size.height), curbPaint);
     canvas.drawLine(Offset(cx + roadWidth * 0.5, 0), Offset(cx + roadWidth * 0.5, size.height), curbPaint);
 
-    // 3. Moving Lane Dashed Dividers (Between Lane 1-2 and Lane 2-3)
-    _drawMovingDashedLine(canvas, cx - 55, size.height, cycle);
-    _drawMovingDashedLine(canvas, cx + 55, size.height, cycle);
+    // 3. Moving Lane Dashed Dividers
+    final animSpeed = isBraking ? 0.0 : (trainedCarSpeed / 60.0);
+    _drawMovingDashedLine(canvas, cx - 55, size.height, (cycle * animSpeed) % 1.0);
+    _drawMovingDashedLine(canvas, cx + 55, size.height, (cycle * animSpeed) % 1.0);
 
-    // 4. Directional Forward Arrows on Pavement
-    _drawDirectionalArrows(canvas, cx, size.height, cycle);
+    // 4. Directional Road Markings
+    _drawDirectionalArrows(canvas, cx, size.height, (cycle * animSpeed) % 1.0);
 
-    // 5. Emergency Green Wave Corridor
-    if (autoState.isCorridorActive) {
-      final corridorPaint = Paint()..color = const Color(0xFF22C55E).withValues(alpha: 0.28);
-      canvas.drawRect(Rect.fromLTWH(cx - roadWidth * 0.5, 0, 110, size.height), corridorPaint);
-    }
+    // 5. Positions
+    final playerPos = Offset(cx + trainedCarX, size.height * 0.55);
 
-    // 6. Road Hazard Obstacle / Accident in Lane 1
-    if (autoState.isObstacleVisible) {
-      final obstacleY = size.height * 0.22;
-      _drawAccidentObstacle(canvas, Offset(cx - 110, obstacleY), cycle);
+    // 6. Draw 360-Degree AI Perception Scanner Cone & Radar Ring from Trained Car
+    _drawAiPerceptionScanner(canvas, playerPos, testCarPos, cycle);
 
-      // Dynamic Animated Detour Arrows pointing to Lane 2 & Lane 3
-      _drawDetourArrows(canvas, Offset(cx - 110, obstacleY + 70), cycle);
-    }
+    // 7. Distance & Target Vector Line
+    _drawTargetVectorLine(canvas, playerPos, testCarPos, testCarTrust);
 
-    // 7. Overhead Smart Traffic Signal Gantry
-    _drawTrafficSignalGantry(canvas, cx, autoState.isSignalBlinkingRed, cycle);
-
-    // 8. Solo Host Vehicle (YOU - V-101) Position
-    final playerX = cx + (autoState.playerLaneTarget * 110.0);
-    final playerY = size.height * 0.55;
-
-    // 9. Ambulance (AMB-1122) Position
-    final ambX = cx - 110;
-    final ambY = size.height * autoState.ambulanceYProgress;
-
-    // 10. Omnidirectional V2V Communication Pulse Waves from Solo Vehicle
-    _drawVanetWirelessWaves(
+    // 8. Draw Trained Solo Host Vehicle (Host) - Purple-Blue
+    _drawHostCar(
       canvas: canvas,
-      playerPos: Offset(playerX, playerY),
-      ambPos: autoState.isAmbulanceVisible ? Offset(ambX, ambY) : null,
-      cycle: cycle,
-      isEmergency: autoState.isAmbulanceVisible,
+      pos: playerPos,
+      bodyColor: const Color(0xFF7C3AED), // Royal Purple-Blue
+      roofColor: const Color(0xFF4F46E5), // Deep Indigo
+      label: 'Host',
+      isBraking: isBraking,
+      isDodging: isDodging,
+      dodgeDirection: dodgeDirection,
     );
 
-    // 11. Draw Solo Host Vehicle (YOU - V-101) - Signature Safety Orange
-    _drawCar(
-      canvas: canvas,
-      pos: Offset(playerX, playerY),
-      bodyColor: const Color(0xFFE45D3F),
-      roofColor: const Color(0xFFF97316),
-      label: 'YOU (V-101)',
-      hasRightBlinker: autoState.isBlinkerActive && ((cycle * 24).floor() % 2 == 0),
-    );
-
-    // 12. Draw Ambulance (AMB-1122) When Active
-    if (autoState.isAmbulanceVisible) {
+    // 9. Draw Interactive Test Vehicle (User-Controlled)
+    if (testCarType == 'ambulance') {
       _drawAmbulance(
         canvas: canvas,
-        pos: Offset(ambX, ambY),
-        label: 'AMBULANCE 1122 (95 km/h)',
-        cycle: cycle,
+        pos: testCarPos,
+        label: testCarLabel,
+        isDragging: isDragging,
       );
-    }
-  }
-
-  void _drawMovingDashedLine(Canvas canvas, double x, double height, double anim) {
-    final dashPaint = Paint()..color = Colors.white..strokeWidth = 2.5;
-    const double dashLen = 24.0;
-    const double gap = 20.0;
-    final double offset = (anim * 220.0) % (dashLen + gap);
-
-    for (double y = -dashLen + offset; y < height; y += (dashLen + gap)) {
-      canvas.drawLine(Offset(x, y), Offset(x, y + dashLen), dashPaint);
-    }
-  }
-
-  void _drawDirectionalArrows(Canvas canvas, double cx, double height, double anim) {
-    final arrowPaint = Paint()..color = Colors.white24..strokeWidth = 2.0;
-
-    for (double y = 80; y < height; y += 220) {
-      final effectiveY = (y + anim * 160.0) % height;
-      _drawSingleArrow(canvas, Offset(cx - 110, effectiveY), arrowPaint);
-      _drawSingleArrow(canvas, Offset(cx, effectiveY), arrowPaint);
-      _drawSingleArrow(canvas, Offset(cx + 110, effectiveY), arrowPaint);
-    }
-  }
-
-  void _drawSingleArrow(Canvas canvas, Offset pos, Paint paint) {
-    final path = Path()
-      ..moveTo(pos.dx, pos.dy - 12)
-      ..lineTo(pos.dx - 6, pos.dy - 2)
-      ..moveTo(pos.dx, pos.dy - 12)
-      ..lineTo(pos.dx + 6, pos.dy - 2)
-      ..moveTo(pos.dx, pos.dy - 12)
-      ..lineTo(pos.dx, pos.dy + 12);
-    canvas.drawPath(path, paint);
-  }
-
-  // 🚧 Accident Obstacle in Lane 1 with Hazard Stripes & Cones
-  void _drawAccidentObstacle(Canvas canvas, Offset pos, double anim) {
-    // 1. Crash Hazard Barrier
-    const double bw = 80.0;
-    const double bh = 26.0;
-    final bRect = Rect.fromCenter(center: pos, width: bw, height: bh);
-
-    // Hazard Stripes (Yellow & Black)
-    canvas.drawRRect(RRect.fromRectAndRadius(bRect, const Radius.circular(6)), Paint()..color = const Color(0xFFF59E0B));
-    final stripePaint = Paint()..color = const Color(0xFF0F172A)..strokeWidth = 5.0;
-    for (double i = -bw * 0.5 + 4; i < bw * 0.5; i += 14) {
-      canvas.drawLine(Offset(pos.dx + i, pos.dy - bh * 0.5), Offset(pos.dx + i + 8, pos.dy + bh * 0.5), stripePaint);
-    }
-
-    // Flashing Strobe Beacon on Barrier
-    final isStrobe = ((anim * 24).floor() % 2) == 0;
-    canvas.drawCircle(
-      Offset(pos.dx, pos.dy - bh * 0.5 - 6),
-      7.0,
-      Paint()
-        ..color = isStrobe ? const Color(0xFFEF4444) : const Color(0xFFF59E0B)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
-    );
-
-    // 2. Traffic Cones
-    _drawCone(canvas, Offset(pos.dx - 32, pos.dy + 22));
-    _drawCone(canvas, Offset(pos.dx + 32, pos.dy + 22));
-
-    // 3. Floating Incident Alert Badge
-    _drawBadge(canvas, pos.translate(0, -32), '⚠️ ACCIDENT IN LANE 1', const Color(0xFFDC2626));
-  }
-
-  void _drawCone(Canvas canvas, Offset pos) {
-    final conePath = Path()
-      ..moveTo(pos.dx, pos.dy - 12)
-      ..lineTo(pos.dx - 8, pos.dy + 6)
-      ..lineTo(pos.dx + 8, pos.dy + 6)
-      ..close();
-    canvas.drawPath(conePath, Paint()..color = const Color(0xFFEA580C));
-    // White reflective band
-    canvas.drawLine(Offset(pos.dx - 4, pos.dy), Offset(pos.dx + 4, pos.dy), Paint()..color = Colors.white..strokeWidth = 2.5);
-  }
-
-  // ➡️ Animated Detour Turn Arrows on Asphalt
-  void _drawDetourArrows(Canvas canvas, Offset pos, double anim) {
-    final detourPaint = Paint()
-      ..color = const Color(0xFF10B981)
-      ..strokeWidth = 3.5
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    final pulse = math.sin(anim * math.pi * 8) * 4;
-
-    // Curved arrow pointing from Lane 1 into Lane 2 & 3
-    final path = Path()
-      ..moveTo(pos.dx - 10, pos.dy)
-      ..quadraticBezierTo(pos.dx + 25, pos.dy, pos.dx + 60 + pulse, pos.dy + 35);
-
-    // Arrow Head
-    final head = Path()
-      ..moveTo(pos.dx + 60 + pulse, pos.dy + 35)
-      ..lineTo(pos.dx + 46 + pulse, pos.dy + 30)
-      ..moveTo(pos.dx + 60 + pulse, pos.dy + 35)
-      ..lineTo(pos.dx + 52 + pulse, pos.dy + 22);
-
-    canvas.drawPath(path, detourPaint);
-    canvas.drawPath(head, detourPaint);
-
-    // Detour Text Label
-    final tp = TextPainter(
-      text: TextSpan(
-        text: 'DETOUR RIGHT',
-        style: GoogleFonts.outfit(color: const Color(0xFF10B981), fontSize: 10, fontWeight: FontWeight.bold),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    tp.paint(canvas, Offset(pos.dx - 10, pos.dy + 6));
-  }
-
-  // Omnidirectional V2V Wireless Communication Pulses
-  void _drawVanetWirelessWaves({
-    required Canvas canvas,
-    required Offset playerPos,
-    required Offset? ambPos,
-    required double cycle,
-    required bool isEmergency,
-  }) {
-    // 1. Omnidirectional 10Hz V2V Radio Safety Rings around Solo Vehicle
-    for (int i = 0; i < 3; i++) {
-      final waveProgress = ((cycle * 2.2) + (i * 0.33)) % 1.0;
-      final waveRadius = 24.0 + (waveProgress * 70.0);
-      final waveOpacity = (1.0 - waveProgress).clamp(0.0, 1.0) * 0.45;
-
-      canvas.drawCircle(
-        playerPos,
-        waveRadius,
-        Paint()
-          ..color = const Color(0xFFE45D3F).withValues(alpha: waveOpacity)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.8,
-      );
-    }
-
-    // 2. Emergency Siren V2V Link if Ambulance is active
-    if (ambPos != null) {
-      _drawDataBeam(
+    } else {
+      _drawTestCar(
         canvas: canvas,
-        from: ambPos,
-        to: playerPos,
-        color: const Color(0xFFDC2626),
-        cycle: cycle,
-        label: 'V2V DENM: Siren Alert',
-        isEmergency: true,
+        pos: testCarPos,
+        label: testCarLabel,
+        trustScore: testCarTrust,
+        isDragging: isDragging,
+        type: testCarType,
       );
     }
   }
 
-  void _drawDataBeam({
-    required Canvas canvas,
-    required Offset from,
-    required Offset to,
-    required Color color,
-    required double cycle,
-    required String label,
-    bool isEmergency = false,
-  }) {
-    // Animated glowing line
-    final beamPaint = Paint()
-      ..color = color.withValues(alpha: isEmergency ? 0.85 : 0.5)
-      ..strokeWidth = isEmergency ? 2.5 : 1.6
+  // --- Dynamic AI Perception Scanner ---
+  void _drawAiPerceptionScanner(Canvas canvas, Offset host, Offset target, double anim) {
+    final radarPaint = Paint()
+      ..color = const Color(0xFF7C3AED).withValues(alpha: 0.08)
+      ..style = PaintingStyle.fill;
+
+    // 360 Awareness Field (160px radius)
+    canvas.drawCircle(host, 160.0, radarPaint);
+
+    // Pulsing Perception Wave
+    final pulseRadius = 60.0 + (anim * 100.0);
+    final wavePaint = Paint()
+      ..color = (testCarTrust < 40 ? const Color(0xFFDC2626) : const Color(0xFF7C3AED)).withValues(alpha: (1.0 - anim) * 0.45)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+    canvas.drawCircle(host, pulseRadius, wavePaint);
+  }
+
+  // --- Target Telemetry Vector Line ---
+  void _drawTargetVectorLine(Canvas canvas, Offset host, Offset target, double trust) {
+    final color = trust >= 75 ? const Color(0xFF059669) : (trust >= 40 ? const Color(0xFFEA580C) : const Color(0xFFDC2626));
+    final linePaint = Paint()
+      ..color = color.withValues(alpha: 0.6)
+      ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
 
-    canvas.drawLine(from, to, beamPaint);
+    canvas.drawLine(host, target, linePaint);
 
-    // Flying Data Packet Dot along the beam
-    final packetProgress = (cycle * 5.0) % 1.0;
-    final packetPos = Offset(
-      from.dx + (to.dx - from.dx) * packetProgress,
-      from.dy + (to.dy - from.dy) * packetProgress,
-    );
+    // Midpoint distance label
+    final mid = Offset((host.dx + target.dx) * 0.5, (host.dy + target.dy) * 0.5);
+    final distMeters = (math.sqrt(math.pow(target.dx - host.dx, 2) + math.pow(target.dy - host.dy, 2)) / 4.5).clamp(2.0, 150.0);
 
-    canvas.drawCircle(
-      packetPos,
-      isEmergency ? 5.0 : 3.5,
-      Paint()
-        ..color = color
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
-    );
-  }
-
-  // Overhead Smart Traffic Signal Gantry
-  void _drawTrafficSignalGantry(Canvas canvas, double cx, bool isBlinkingRed, double anim) {
-    const double gantryY = 56.0;
-
-    final isBlinkOn = isBlinkingRed && ((anim * 20).floor() % 2 == 0);
-    final signalColor = isBlinkingRed
-        ? (isBlinkOn ? const Color(0xFFEF4444) : Colors.black45)
-        : const Color(0xFF22C55E);
-
-    // Gantry Box
-    final boxRect = Rect.fromCenter(center: Offset(cx, gantryY), width: 220, height: 28);
-    canvas.drawRRect(RRect.fromRectAndRadius(boxRect, const Radius.circular(8)), Paint()..color = const Color(0xFF0F172A));
-
-    // Signal Light Bulb
-    canvas.drawCircle(
-      Offset(cx - 75, gantryY),
-      8.5,
-      Paint()
-        ..color = signalColor
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, isBlinkOn ? 6 : 2),
-    );
-
-    // Gantry Text
     final tp = TextPainter(
       text: TextSpan(
-        text: isBlinkingRed ? 'PREEMPTION: HOLD CROSS TRAFFIC' : 'SPaT: GREEN WAVE (CLEAR)',
-        style: GoogleFonts.outfit(
-          color: Colors.white,
-          fontSize: 10.5,
-          fontWeight: FontWeight.bold,
-        ),
+        text: '${distMeters.toStringAsFixed(1)}m',
+        style: GoogleFonts.outfit(color: color, fontSize: 10, fontWeight: FontWeight.bold),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
-    tp.paint(canvas, Offset(cx - 56, gantryY - tp.height * 0.5));
+
+    final bgRect = Rect.fromCenter(center: mid, width: tp.width + 12, height: tp.height + 6);
+    canvas.drawRRect(RRect.fromRectAndRadius(bgRect, const Radius.circular(4)), Paint()..color = Colors.white);
+    tp.paint(canvas, mid.translate(-tp.width * 0.5, -tp.height * 0.5));
   }
 
-  // Vehicle Painter
-  void _drawCar({
+  // --- Trained Solo Host Car Painter ---
+  void _drawHostCar({
     required Canvas canvas,
     required Offset pos,
     required Color bodyColor,
     required Color roofColor,
     required String label,
-    required bool hasRightBlinker,
-    bool isFlaggedAnomaly = false,
+    required bool isBraking,
+    required bool isDodging,
+    required int dodgeDirection,
   }) {
-    const double w = 42.0;
-    const double h = 68.0;
+    const double w = 44.0;
+    const double h = 70.0;
 
     // Drop Shadow
     canvas.drawOval(
@@ -1122,7 +782,7 @@ class _VanetSimulationPainter extends CustomPainter {
       Paint()..color = Colors.black26,
     );
 
-    // Car Body Chassis
+    // Chassis
     final bodyRRect = RRect.fromRectAndRadius(
       Rect.fromCenter(center: pos, width: w, height: h),
       const Radius.circular(8),
@@ -1131,9 +791,9 @@ class _VanetSimulationPainter extends CustomPainter {
     canvas.drawRRect(
       bodyRRect,
       Paint()
-        ..color = isFlaggedAnomaly ? const Color(0xFFEF4444) : Colors.white38
+        ..color = isBraking ? const Color(0xFFDC2626) : Colors.white60
         ..style = PaintingStyle.stroke
-        ..strokeWidth = isFlaggedAnomaly ? 2.0 : 1.2,
+        ..strokeWidth = isBraking ? 2.5 : 1.2,
     );
 
     // Roof & Glass
@@ -1143,25 +803,27 @@ class _VanetSimulationPainter extends CustomPainter {
     );
     canvas.drawRRect(roofRRect, Paint()..color = roofColor);
 
-    // Roof V2X Shark-Fin Antenna with Wireless Ripple Dot
+    // V2X Shark Antenna
     canvas.drawCircle(Offset(pos.dx, pos.dy + 8), 3.0, Paint()..color = Colors.white);
-    canvas.drawCircle(
-      Offset(pos.dx, pos.dy + 8),
-      6.0,
-      Paint()
-        ..color = bodyColor.withValues(alpha: 0.4)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2,
-    );
 
     // Headlights
     canvas.drawCircle(Offset(pos.dx - 13, pos.dy - (h * 0.42)), 3.5, Paint()..color = const Color(0xFFFEF08A));
     canvas.drawCircle(Offset(pos.dx + 13, pos.dy - (h * 0.42)), 3.5, Paint()..color = const Color(0xFFFEF08A));
 
-    // Blinking Turn Signal Indicator (Right side)
-    if (hasRightBlinker) {
+    // Emergency Brake Lights (Glowing Red during collision avoidance)
+    if (isBraking) {
+      final brakePaint = Paint()
+        ..color = const Color(0xFFFF0000)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+      canvas.drawCircle(Offset(pos.dx - 14, pos.dy + (h * 0.42)), 6.0, brakePaint);
+      canvas.drawCircle(Offset(pos.dx + 14, pos.dy + (h * 0.42)), 6.0, brakePaint);
+    }
+
+    // Turn Signal Indicators during Dodge
+    if (isDodging) {
+      final blinkX = dodgeDirection < 0 ? (pos.dx - 18) : (pos.dx + 18);
       canvas.drawCircle(
-        Offset(pos.dx + 18, pos.dy - (h * 0.3)),
+        Offset(blinkX, pos.dy - (h * 0.3)),
         6.0,
         Paint()
           ..color = const Color(0xFFF59E0B)
@@ -1169,16 +831,82 @@ class _VanetSimulationPainter extends CustomPainter {
       );
     }
 
-    // Floating Badge
-    _drawBadge(canvas, pos.translate(0, -h * 0.68), label, isFlaggedAnomaly ? const Color(0xFFDC2626) : bodyColor);
+    // Badge
+    _drawBadge(canvas, pos.translate(0, -h * 0.68), label, bodyColor);
   }
 
-  // 🚑 Ambulance Painter
+  // --- Interactive Test Vehicle Painter ---
+  void _drawTestCar({
+    required Canvas canvas,
+    required Offset pos,
+    required String label,
+    required double trustScore,
+    required bool isDragging,
+    required String type,
+  }) {
+    const double w = 42.0;
+    const double h = 68.0;
+
+    final color = trustScore >= 75
+        ? const Color(0xFF059669)
+        : (trustScore >= 40 ? const Color(0xFFD97706) : const Color(0xFFDC2626));
+
+    // Dragging Glow Ring
+    if (isDragging) {
+      canvas.drawCircle(
+        pos,
+        48.0,
+        Paint()
+          ..color = color.withValues(alpha: 0.25)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3.0,
+      );
+    }
+
+    // Drop Shadow
+    canvas.drawOval(
+      Rect.fromCenter(center: pos.translate(0, 5), width: w * 1.25, height: h * 0.95),
+      Paint()..color = Colors.black26,
+    );
+
+    // Chassis
+    final bodyRRect = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: pos, width: w, height: h),
+      const Radius.circular(8),
+    );
+    canvas.drawRRect(bodyRRect, Paint()..color = color);
+
+    // Roof Glass
+    final roofRRect = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: pos, width: w * 0.68, height: h * 0.52),
+      const Radius.circular(4),
+    );
+    canvas.drawRRect(roofRRect, Paint()..color = Colors.black87);
+
+    // Tail / Head lights
+    canvas.drawCircle(Offset(pos.dx - 13, pos.dy - (h * 0.42)), 3.5, Paint()..color = const Color(0xFFFEF08A));
+    canvas.drawCircle(Offset(pos.dx + 13, pos.dy - (h * 0.42)), 3.5, Paint()..color = const Color(0xFFFEF08A));
+
+    // Touch Drag Target Crosshair Indicator
+    canvas.drawCircle(
+      pos,
+      12.0,
+      Paint()
+        ..color = Colors.white70
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5,
+    );
+
+    // Floating Badge
+    _drawBadge(canvas, pos.translate(0, -h * 0.68), '$label (${trustScore.toStringAsFixed(0)}%)', color);
+  }
+
+  // --- Ambulance Painter ---
   void _drawAmbulance({
     required Canvas canvas,
     required Offset pos,
     required String label,
-    required double cycle,
+    required bool isDragging,
   }) {
     const double w = 48.0;
     const double h = 82.0;
@@ -1189,31 +917,32 @@ class _VanetSimulationPainter extends CustomPainter {
       Paint()..color = Colors.black38,
     );
 
-    // Ambulance Body
+    // Body
     final bodyRRect = RRect.fromRectAndRadius(
       Rect.fromCenter(center: pos, width: w, height: h),
       const Radius.circular(8),
     );
     canvas.drawRRect(bodyRRect, Paint()..color = Colors.white);
-    canvas.drawRRect(bodyRRect, Paint()..color = const Color(0xFFDC2626)..style = PaintingStyle.stroke..strokeWidth = 2.2);
+    canvas.drawRRect(bodyRRect, Paint()..color = const Color(0xFFDC2626)..style = PaintingStyle.stroke..strokeWidth = 2.0);
 
-    // Red Cross on Roof
-    final crossPaint = Paint()..color = const Color(0xFFDC2626)..strokeWidth = 4.5;
-    canvas.drawLine(Offset(pos.dx - 9, pos.dy), Offset(pos.dx + 9, pos.dy), crossPaint);
-    canvas.drawLine(Offset(pos.dx, pos.dy - 9), Offset(pos.dx, pos.dy + 9), crossPaint);
+    // Red Cross
+    final crossPaint = Paint()..color = const Color(0xFFDC2626);
+    canvas.drawRect(Rect.fromCenter(center: pos, width: 7, height: 24), crossPaint);
+    canvas.drawRect(Rect.fromCenter(center: pos, width: 24, height: 7), crossPaint);
 
-    // Alternating Red & Blue Strobe Siren Lights
-    final isBlue = ((cycle * 24).floor() % 2) == 0;
-    final strobe1 = isBlue ? const Color(0xFF2563EB) : const Color(0xFFDC2626);
-    final strobe2 = isBlue ? const Color(0xFFDC2626) : const Color(0xFF2563EB);
+    // Flashing Siren
+    canvas.drawCircle(
+      Offset(pos.dx, pos.dy - 16),
+      8.0,
+      Paint()
+        ..color = const Color(0xFF0284C7)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+    );
 
-    canvas.drawCircle(Offset(pos.dx - 12, pos.dy - (h * 0.25)), 7.0, Paint()..color = strobe1..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
-    canvas.drawCircle(Offset(pos.dx + 12, pos.dy - (h * 0.25)), 7.0, Paint()..color = strobe2..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
-
-    // Floating Label
     _drawBadge(canvas, pos.translate(0, -h * 0.68), label, const Color(0xFFDC2626));
   }
 
+  // --- Badge Helper ---
   void _drawBadge(Canvas canvas, Offset center, String text, Color color) {
     final tp = TextPainter(
       text: TextSpan(
@@ -1236,6 +965,29 @@ class _VanetSimulationPainter extends CustomPainter {
     tp.paint(canvas, center.translate(-tp.width * 0.5, -tp.height * 0.5));
   }
 
+  void _drawMovingDashedLine(Canvas canvas, double x, double height, double anim) {
+    final dashPaint = Paint()..color = Colors.white..strokeWidth = 2.5;
+    const double dashLen = 24.0;
+    const double gap = 20.0;
+    final double offset = (anim * 220.0) % (dashLen + gap);
+
+    for (double y = -dashLen + offset; y < height; y += (dashLen + gap)) {
+      canvas.drawLine(Offset(x, y), Offset(x, y + dashLen), dashPaint);
+    }
+  }
+
+  void _drawDirectionalArrows(Canvas canvas, double cx, double height, double anim) {
+    final arrowPaint = Paint()..color = Colors.white24..strokeWidth = 2.0;
+
+    for (double y = 80; y < height; y += 220) {
+      final p = Path();
+      p.moveTo(cx - 8, y + 10);
+      p.lineTo(cx, y);
+      p.lineTo(cx + 8, y + 10);
+      canvas.drawPath(p, arrowPaint);
+    }
+  }
+
   @override
-  bool shouldRepaint(covariant _VanetSimulationPainter oldDelegate) => true;
+  bool shouldRepaint(covariant _VanetInteractivePainter oldDelegate) => true;
 }

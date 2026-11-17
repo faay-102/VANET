@@ -15,7 +15,7 @@ git add .
 
 echo.
 echo [3/4] Committing changes...
-git commit -m "refactor: strictly separate bottom tabs with zero duplicate cross-navigation buttons"
+git commit -m "feat: real-time interactive AI simulator with touch control, trained car dodge reactions, and authentic trust math"
 
 echo.
 echo [4/4] Pushing to main branch...
