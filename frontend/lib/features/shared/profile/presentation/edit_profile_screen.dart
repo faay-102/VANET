@@ -96,7 +96,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         shape: BoxShape.circle,
                         color: AppTheme.secondarySurface,
                         border: Border.all(
-                          color: AppTheme.primary.withValues(alpha: 0.35),
+                          color: AppTheme.primary.withOpacity(0.35),
                           width: 2.0,
                         ),
                       ),

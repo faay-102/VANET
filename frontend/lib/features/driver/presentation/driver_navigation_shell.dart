@@ -24,55 +24,29 @@ class DriverNavigationShell extends ConsumerWidget {
     final isWide = MediaQuery.of(context).size.width >= 800;
 
     final appBar = AppBar(
-      title: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppTheme.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.directions_car_rounded, size: 16, color: AppTheme.primary),
-                const SizedBox(width: 4),
-                Text(
-                  'DRIVER OBU',
-                  style: GoogleFonts.outfit(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primary,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            _getTitle(navigationShell.currentIndex),
-            style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-        ],
+      title: Text(
+        _getTitle(navigationShell.currentIndex),
+        style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold),
+        overflow: TextOverflow.ellipsis,
       ),
       actions: [
         // Trust Badge on App Bar
         Container(
-          margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: AppTheme.safe.withValues(alpha: 0.12),
+            color: AppTheme.safe.withOpacity(0.12),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppTheme.safe.withValues(alpha: 0.3)),
+            border: Border.all(color: AppTheme.safe.withOpacity(0.3)),
           ),
           child: Row(
             children: [
               const Icon(Icons.verified_user_rounded, size: 14, color: AppTheme.safe),
               const SizedBox(width: 4),
               Text(
-                '${(driverState.trustScore * 100).toInt()}% Trust',
+                '${(driverState.trustScore * 100).toInt()}%',
                 style: GoogleFonts.outfit(
-                  fontSize: 12,
+                  fontSize: 11.5,
                   fontWeight: FontWeight.bold,
                   color: AppTheme.safe,
                 ),
@@ -81,7 +55,7 @@ class DriverNavigationShell extends ConsumerWidget {
           ),
         ),
         IconButton(
-          icon: const Icon(Icons.alt_route_rounded, color: AppTheme.textPrimary),
+          icon: const Icon(Icons.alt_route_rounded, color: AppTheme.textPrimary, size: 20),
           tooltip: 'Safe Route Detours',
           onPressed: () => context.push('/driver/safe-route'),
         ),

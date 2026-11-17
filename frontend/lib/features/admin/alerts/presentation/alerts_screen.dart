@@ -214,7 +214,7 @@ class AlertsScreen extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: iconColor.withValues(alpha: 0.1),
+                    color: iconColor.withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(iconData, color: iconColor, size: 20),
@@ -245,6 +245,7 @@ class AlertsScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
+                const SizedBox(width: 8),
 
                 // Timestamp
                 Text(

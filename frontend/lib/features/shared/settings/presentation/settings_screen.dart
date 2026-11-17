@@ -44,9 +44,9 @@ class SettingsScreen extends ConsumerWidget {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: AppTheme.primary.withValues(alpha: 0.1),
+                      color: AppTheme.primary.withOpacity(0.1),
                       shape: BoxShape.circle,
-                      border: Border.all(color: AppTheme.primary.withValues(alpha: 0.25)),
+                      border: Border.all(color: AppTheme.primary.withOpacity(0.25)),
                     ),
                     child: const Icon(Icons.badge_outlined, color: AppTheme.primary, size: 24),
                   ),
@@ -183,9 +183,15 @@ class SettingsScreen extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.5),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: GoogleFonts.outfit(color: AppTheme.textSecondary, fontSize: 11.5)),
+          Expanded(
+            child: Text(
+              label,
+              style: GoogleFonts.outfit(color: AppTheme.textSecondary, fontSize: 11.5),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
           Text(
             status,
             style: GoogleFonts.outfit(

@@ -87,7 +87,7 @@ class EmergencyVehiclesScreen extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppTheme.safe.withValues(alpha: 0.12),
+                      color: AppTheme.safe.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
@@ -157,7 +157,7 @@ class EmergencyVehiclesScreen extends ConsumerWidget {
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF2563EB).withValues(alpha: 0.4),
+                              color: const Color(0xFF2563EB).withOpacity(0.4),
                               blurRadius: 6,
                               offset: const Offset(0, 2),
                             ),
@@ -177,7 +177,7 @@ class EmergencyVehiclesScreen extends ConsumerWidget {
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: AppTheme.primary.withValues(alpha: 0.4),
+                              color: AppTheme.primary.withOpacity(0.4),
                               blurRadius: 6,
                               offset: const Offset(0, 2),
                             ),
@@ -226,22 +226,20 @@ class EmergencyVehiclesScreen extends ConsumerWidget {
 
   Widget _buildMetaRow(IconData icon, String label, String value, {bool isHighlighted = false}) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Row(
-          children: [
-            Icon(icon, size: 18, color: AppTheme.textSecondary),
-            const SizedBox(width: 10),
-            Text(
-              label,
-              style: GoogleFonts.outfit(
-                fontSize: 13,
-                color: AppTheme.textSecondary,
-                fontWeight: FontWeight.w500,
-              ),
+        Icon(icon, size: 18, color: AppTheme.textSecondary),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            label,
+            style: GoogleFonts.outfit(
+              fontSize: 13,
+              color: AppTheme.textSecondary,
+              fontWeight: FontWeight.w500,
             ),
-          ],
+          ),
         ),
+        const SizedBox(width: 8),
         Text(
           value,
           style: GoogleFonts.outfit(

@@ -58,27 +58,34 @@ class DriverAlertsScreen extends ConsumerWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: (isCritical ? AppTheme.error : AppTheme.primary).withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(6),
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: (isCritical ? AppTheme.error : AppTheme.primary).withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Icon(
+                                    isCritical ? Icons.warning_rounded : Icons.info_outline_rounded,
+                                    color: isCritical ? AppTheme.error : AppTheme.primary,
+                                    size: 18,
+                                  ),
                                 ),
-                                child: Icon(
-                                  isCritical ? Icons.warning_rounded : Icons.info_outline_rounded,
-                                  color: isCritical ? AppTheme.error : AppTheme.primary,
-                                  size: 18,
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    alert.title,
+                                    style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13.5),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                alert.title,
-                                style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
+                          const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
@@ -98,8 +105,11 @@ class DriverAlertsScreen extends ConsumerWidget {
                         style: GoogleFonts.outfit(fontSize: 12.5, color: AppTheme.textPrimary),
                       ),
                       const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
+                      Wrap(
+                        alignment: WrapAlignment.end,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 8,
+                        runSpacing: 6,
                         children: [
                           if (alert.vehicleId != null && alert.vehicleId!.startsWith('V'))
                             TextButton.icon(
@@ -107,7 +117,6 @@ class DriverAlertsScreen extends ConsumerWidget {
                               label: Text('Explain AI Detection', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 11.5)),
                               onPressed: () => context.push('/driver/xai/${alert.vehicleId}'),
                             ),
-                          const SizedBox(width: 8),
                           OutlinedButton(
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),

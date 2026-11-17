@@ -28,7 +28,7 @@ class NearbyVehiclesScreen extends ConsumerWidget {
               border: Border.all(color: AppTheme.border, width: 1.2),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
+                  color: Colors.black.withOpacity(0.03),
                   blurRadius: 8,
                   offset: const Offset(0, 3),
                 ),
@@ -40,9 +40,9 @@ class NearbyVehiclesScreen extends ConsumerWidget {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: AppTheme.safe.withValues(alpha: 0.12),
+                    color: AppTheme.safe.withOpacity(0.12),
                     shape: BoxShape.circle,
-                    border: Border.all(color: AppTheme.safe.withValues(alpha: 0.3)),
+                    border: Border.all(color: AppTheme.safe.withOpacity(0.3)),
                   ),
                   child: const Center(
                     child: Icon(Icons.radar_rounded, color: AppTheme.safe, size: 26),
@@ -89,9 +89,9 @@ class NearbyVehiclesScreen extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: isUntrusted
-                      ? AppTheme.error.withValues(alpha: 0.4)
+                      ? AppTheme.error.withOpacity(0.4)
                       : isEmergency
-                          ? AppTheme.primary.withValues(alpha: 0.4)
+                          ? AppTheme.primary.withOpacity(0.4)
                           : AppTheme.border,
                   width: (isUntrusted || isEmergency) ? 1.5 : 1.0,
                 ),
@@ -103,10 +103,10 @@ class NearbyVehiclesScreen extends ConsumerWidget {
                       CircleAvatar(
                         radius: 20,
                         backgroundColor: isEmergency
-                            ? AppTheme.error.withValues(alpha: 0.12)
+                            ? AppTheme.error.withOpacity(0.12)
                             : isUntrusted
-                                ? AppTheme.error.withValues(alpha: 0.12)
-                                : AppTheme.safe.withValues(alpha: 0.12),
+                                ? AppTheme.error.withOpacity(0.12)
+                                : AppTheme.safe.withOpacity(0.12),
                         child: Icon(
                           isEmergency
                               ? Icons.emergency_rounded
@@ -126,13 +126,14 @@ class NearbyVehiclesScreen extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
+                            Wrap(
+                              spacing: 6,
+                              crossAxisAlignment: WrapCrossAlignment.center,
                               children: [
                                 Text(
                                   vehicle.id,
                                   style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14),
                                 ),
-                                const SizedBox(width: 6),
                                 _tagChip(
                                   isEmergency
                                       ? 'EMERGENCY'
@@ -184,7 +185,7 @@ class NearbyVehiclesScreen extends ConsumerWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: AppTheme.primary.withValues(alpha: 0.1),
+                            color: AppTheme.primary.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
@@ -207,7 +208,7 @@ class NearbyVehiclesScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(

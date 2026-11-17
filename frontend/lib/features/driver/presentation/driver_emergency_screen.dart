@@ -35,7 +35,7 @@ class DriverEmergencyScreen extends ConsumerWidget {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: (state.isEmergencyModeActive ? AppTheme.error : Colors.black).withValues(alpha: 0.1),
+                    color: (state.isEmergencyModeActive ? AppTheme.error : Colors.black).withOpacity(0.1),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -67,7 +67,7 @@ class DriverEmergencyScreen extends ConsumerWidget {
                     textAlign: TextAlign.center,
                     style: GoogleFonts.outfit(
                       fontSize: 12,
-                      color: state.isEmergencyModeActive ? Colors.white.withValues(alpha: 0.9) : AppTheme.textSecondary,
+                      color: state.isEmergencyModeActive ? Colors.white.withOpacity(0.9) : AppTheme.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -112,7 +112,7 @@ class DriverEmergencyScreen extends ConsumerWidget {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppTheme.error.withValues(alpha: 0.12),
+                          color: AppTheme.error.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(Icons.local_hospital_rounded, color: AppTheme.error, size: 24),
@@ -186,13 +186,14 @@ class DriverEmergencyScreen extends ConsumerWidget {
         children: [
           CircleAvatar(
             radius: 12,
-            backgroundColor: color.withValues(alpha: 0.15),
+            backgroundColor: color.withOpacity(0.15),
             child: Text('$step', style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.bold, color: color)),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(location, style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w500)),
           ),
+          const SizedBox(width: 8),
           Text(status, style: GoogleFonts.outfit(fontSize: 11.5, fontWeight: FontWeight.bold, color: color)),
         ],
       ),

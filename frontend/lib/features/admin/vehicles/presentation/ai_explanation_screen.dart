@@ -94,7 +94,7 @@ class _AIExplanationScreenState extends ConsumerState<AIExplanationScreen> {
                 borderRadius: BorderRadius.circular(10),
                 boxShadow: [
                   BoxShadow(
-                    color: bannerColor.withValues(alpha: 0.25),
+                    color: bannerColor.withOpacity(0.25),
                     blurRadius: 8,
                     offset: const Offset(0, 3),
                   ),
@@ -368,33 +368,32 @@ class _AIExplanationScreenState extends ConsumerState<AIExplanationScreen> {
 
   Widget _buildLimeLegendRow(String title, String percent, Color color) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Row(
-          children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              title,
-              style: GoogleFonts.outfit(
-                fontSize: 12,
-                color: AppTheme.textPrimary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
         ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            title,
+            style: GoogleFonts.outfit(
+              fontSize: 11.5,
+              color: AppTheme.textPrimary,
+              fontWeight: FontWeight.w500,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(width: 6),
         Text(
           percent,
           style: GoogleFonts.outfit(
-            fontSize: 12,
+            fontSize: 11.5,
             fontWeight: FontWeight.bold,
             color: AppTheme.textPrimary,
           ),
@@ -407,15 +406,20 @@ class _AIExplanationScreenState extends ConsumerState<AIExplanationScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: GoogleFonts.outfit(fontSize: 11.5, color: AppTheme.textSecondary),
+          Expanded(
+            child: Text(
+              label,
+              style: GoogleFonts.outfit(fontSize: 11.5, color: AppTheme.textSecondary),
+            ),
           ),
-          Text(
-            value,
-            style: GoogleFonts.outfit(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: GoogleFonts.outfit(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
+            ),
           ),
         ],
       ),

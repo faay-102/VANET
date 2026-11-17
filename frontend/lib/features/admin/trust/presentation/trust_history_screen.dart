@@ -246,7 +246,7 @@ class TrustHistoryScreen extends StatelessWidget {
                               ),
                               belowBarData: BarAreaData(
                                 show: true,
-                                color: AppTheme.primary.withValues(alpha: 0.1),
+                                color: AppTheme.primary.withOpacity(0.1),
                               ),
                             ),
                           ],
@@ -309,18 +309,21 @@ class TrustHistoryScreen extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: GoogleFonts.outfit(
-            fontSize: 13,
-            color: AppTheme.textPrimary,
-            fontWeight: FontWeight.w500,
+        Expanded(
+          child: Text(
+            label,
+            style: GoogleFonts.outfit(
+              fontSize: 13,
+              color: AppTheme.textPrimary,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
+        const SizedBox(width: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
           decoration: BoxDecoration(
-            color: isNegative ? AppTheme.error.withValues(alpha: 0.08) : AppTheme.safe.withValues(alpha: 0.08),
+            color: isNegative ? AppTheme.error.withOpacity(0.08) : AppTheme.safe.withOpacity(0.08),
             borderRadius: BorderRadius.circular(6),
           ),
           child: Text(

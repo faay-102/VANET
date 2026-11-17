@@ -239,9 +239,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: AppTheme.error.withValues(alpha: 0.08),
+                        color: AppTheme.error.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppTheme.error.withValues(alpha: 0.3)),
+                        border: Border.all(color: AppTheme.error.withOpacity(0.3)),
                       ),
                       child: Text(
                         authState.errorMessage!,
@@ -256,9 +256,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: AppTheme.safe.withValues(alpha: 0.08),
+                        color: AppTheme.safe.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppTheme.safe.withValues(alpha: 0.3)),
+                        border: Border.all(color: AppTheme.safe.withOpacity(0.3)),
                       ),
                       child: Text(
                         _successMessage!,
@@ -433,7 +433,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         style: GoogleFonts.outfit(color: AppTheme.textPrimary, fontSize: 14),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: GoogleFonts.outfit(color: AppTheme.textSecondary.withValues(alpha: 0.7), fontSize: 13.5),
+          hintStyle: GoogleFonts.outfit(color: AppTheme.textSecondary.withOpacity(0.7), fontSize: 13.5),
           prefixIcon: Icon(icon, size: 20, color: AppTheme.textSecondary),
           suffixIcon: isPassword
               ? IconButton(

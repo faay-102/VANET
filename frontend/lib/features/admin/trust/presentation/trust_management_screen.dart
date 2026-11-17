@@ -19,6 +19,7 @@ class TrustManagementScreen extends ConsumerWidget {
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: AppTheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.only(
@@ -27,83 +28,89 @@ class TrustManagementScreen extends ConsumerWidget {
         ),
       ),
       builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'TRUST AUDIT: $vehicleId',
-                    style: GoogleFonts.outfit(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                      letterSpacing: 0.5,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded, size: 20),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppTheme.secondarySurface,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppTheme.border),
-                ),
-                child: Row(
+        return SafeArea(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildDetailCol('CURRENT TRUST', '${trust.currentTrust}%', color: AppTheme.safe),
-                    _buildDetailCol('PREVIOUS TRUST', '${trust.previousTrust}%'),
-                    _buildDetailCol(
-                      'DELTA',
-                      '${trust.trustChange >= 0 ? '+' : ''}${trust.trustChange}%',
-                      color: trust.trustChange >= 0 ? AppTheme.safe : AppTheme.error,
+                    Expanded(
+                      child: Text(
+                        'TRUST AUDIT: $vehicleId',
+                        style: GoogleFonts.outfit(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          letterSpacing: 0.5,
+                          color: AppTheme.textPrimary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 20),
+                      onPressed: () => Navigator.pop(context),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                'Assessment Justification:',
-                style: GoogleFonts.outfit(
-                  color: AppTheme.textSecondary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.secondarySurface,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppTheme.border),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildDetailCol('CURRENT TRUST', '${trust.currentTrust}%', color: AppTheme.safe),
+                      _buildDetailCol('PREVIOUS TRUST', '${trust.previousTrust}%'),
+                      _buildDetailCol(
+                        'DELTA',
+                        '${trust.trustChange >= 0 ? '+' : ''}${trust.trustChange}%',
+                        color: trust.trustChange >= 0 ? AppTheme.safe : AppTheme.error,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                trust.reason,
-                style: GoogleFonts.outfit(
-                  color: AppTheme.textPrimary,
-                  fontSize: 12.5,
-                  height: 1.35,
+                const SizedBox(height: 14),
+                Text(
+                  'Assessment Justification:',
+                  style: GoogleFonts.outfit(
+                    color: AppTheme.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                'TEMPORAL CONVERGENCE',
-                style: GoogleFonts.outfit(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 11,
-                  letterSpacing: 0.8,
-                  color: AppTheme.textPrimary,
+                const SizedBox(height: 2),
+                Text(
+                  trust.reason,
+                  style: GoogleFonts.outfit(
+                    color: AppTheme.textPrimary,
+                    fontSize: 12.5,
+                    height: 1.35,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              TrustChart(history: trust.trustHistory),
-              const SizedBox(height: 12),
-            ],
+                const SizedBox(height: 14),
+                Text(
+                  'TEMPORAL CONVERGENCE',
+                  style: GoogleFonts.outfit(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                    letterSpacing: 0.8,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TrustChart(history: trust.trustHistory),
+                const SizedBox(height: 12),
+              ],
+            ),
           ),
         );
       },
@@ -251,9 +258,9 @@ class TrustManagementScreen extends ConsumerWidget {
                               width: 30,
                               height: 30,
                               decoration: BoxDecoration(
-                                color: statusColor.withValues(alpha: 0.1),
+                                color: statusColor.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: statusColor.withValues(alpha: 0.25)),
+                                border: Border.all(color: statusColor.withOpacity(0.25)),
                               ),
                               child: Center(
                                 child: Text(

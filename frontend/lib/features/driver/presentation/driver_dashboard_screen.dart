@@ -32,7 +32,7 @@ class DriverDashboardScreen extends ConsumerWidget {
                 border: Border.all(color: AppTheme.border, width: 1.2),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
+                    color: Colors.black.withOpacity(0.04),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -44,38 +44,39 @@ class DriverDashboardScreen extends ConsumerWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Container(
-                            width: 10,
-                            height: 10,
+                            width: 8,
+                            height: 8,
                             decoration: const BoxDecoration(
                               color: AppTheme.safe,
                               shape: BoxShape.circle,
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 6),
                           Text(
-                            'V2X OBU BROADCASTING',
+                            'V2X BROADCASTING',
                             style: GoogleFonts.outfit(
                               color: AppTheme.safe,
-                              fontSize: 11,
+                              fontSize: 10.5,
                               fontWeight: FontWeight.bold,
-                              letterSpacing: 0.8,
+                              letterSpacing: 0.6,
                             ),
                           ),
                         ],
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                         decoration: BoxDecoration(
-                          color: AppTheme.primary.withValues(alpha: 0.08),
+                          color: AppTheme.primary.withOpacity(0.08),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           'ID: ${driverState.vehicleId}',
                           style: GoogleFonts.outfit(
                             color: AppTheme.primary,
-                            fontSize: 11.5,
+                            fontSize: 11,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -147,12 +148,12 @@ class DriverDashboardScreen extends ConsumerWidget {
                       decoration: BoxDecoration(
                         color: driverState.isEmergencyModeActive
                             ? AppTheme.error
-                            : AppTheme.primary.withValues(alpha: 0.08),
+                            : AppTheme.primary.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
                           color: driverState.isEmergencyModeActive
                               ? AppTheme.error
-                              : AppTheme.primary.withValues(alpha: 0.3),
+                              : AppTheme.primary.withOpacity(0.3),
                         ),
                       ),
                       child: Row(
@@ -166,15 +167,20 @@ class DriverDashboardScreen extends ConsumerWidget {
                             size: 18,
                           ),
                           const SizedBox(width: 8),
-                          Text(
-                            driverState.isEmergencyModeActive
-                                ? 'EMERGENCY PREEMPTION ACTIVE'
-                                : 'ACTIVATE EMERGENCY PRIORITY BEACON',
-                            style: GoogleFonts.outfit(
-                              color: driverState.isEmergencyModeActive ? Colors.white : AppTheme.primary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5,
+                          Flexible(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                driverState.isEmergencyModeActive
+                                    ? 'EMERGENCY PREEMPTION ACTIVE'
+                                    : 'ACTIVATE EMERGENCY PRIORITY BEACON',
+                                style: GoogleFonts.outfit(
+                                  color: driverState.isEmergencyModeActive ? Colors.white : AppTheme.primary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
                             ),
                           ),
                         ],
@@ -192,9 +198,9 @@ class DriverDashboardScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: AppTheme.primary.withValues(alpha: 0.08),
+                  color: AppTheme.primary.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
+                  border: Border.all(color: AppTheme.primary.withOpacity(0.3)),
                 ),
                 child: Row(
                   children: [
@@ -350,7 +356,7 @@ class DriverDashboardScreen extends ConsumerWidget {
                     color: AppTheme.surface,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color: isUntrusted ? AppTheme.error.withValues(alpha: 0.3) : AppTheme.border,
+                      color: isUntrusted ? AppTheme.error.withOpacity(0.3) : AppTheme.border,
                     ),
                   ),
                   child: Row(
@@ -359,10 +365,10 @@ class DriverDashboardScreen extends ConsumerWidget {
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           color: isEmergency
-                              ? AppTheme.error.withValues(alpha: 0.12)
+                              ? AppTheme.error.withOpacity(0.12)
                               : isUntrusted
-                                  ? AppTheme.error.withValues(alpha: 0.1)
-                                  : AppTheme.safe.withValues(alpha: 0.1),
+                                  ? AppTheme.error.withOpacity(0.1)
+                                  : AppTheme.safe.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(
@@ -473,7 +479,7 @@ class DriverDashboardScreen extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
+                    color: color.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(icon, color: color, size: 18),

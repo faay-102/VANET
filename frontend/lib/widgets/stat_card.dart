@@ -26,9 +26,9 @@ class StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cardBgColor = isSolid ? AppTheme.primary : AppTheme.surface;
     final primaryTextColor = isSolid ? Colors.white : AppTheme.textPrimary;
-    final secondaryTextColor = isSolid ? Colors.white.withValues(alpha: 0.85) : AppTheme.textSecondary;
+    final secondaryTextColor = isSolid ? Colors.white.withOpacity(0.85) : AppTheme.textSecondary;
     final iconColor = isSolid ? Colors.white : color;
-    final iconBgColor = isSolid ? Colors.white.withValues(alpha: 0.2) : color.withValues(alpha: 0.1);
+    final iconBgColor = isSolid ? Colors.white.withOpacity(0.2) : color.withOpacity(0.1);
     final borderColor = isSolid ? const Color(0xFFD34F1D) : AppTheme.border;
 
     return Container(
@@ -58,7 +58,7 @@ class StatCard extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(12),
           child: Padding(
-            padding: const EdgeInsets.all(14.0),
+            padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 10.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -67,47 +67,53 @@ class StatCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(7),
+                      padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
                         color: iconBgColor,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: isSolid ? Colors.white.withValues(alpha: 0.3) : color.withValues(alpha: 0.2),
+                          color: isSolid ? Colors.white.withOpacity(0.3) : color.withOpacity(0.2),
                         ),
                       ),
-                      child: Icon(icon, color: iconColor, size: 18),
+                      child: Icon(icon, color: iconColor, size: 16),
                     ),
                     if (trend != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: isSolid ? Colors.white.withValues(alpha: 0.22) : color.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(6),
-                          border: isSolid ? Border.all(color: Colors.white.withValues(alpha: 0.35)) : null,
-                        ),
-                        child: Text(
-                          trend!,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.outfit(
-                            color: isSolid ? Colors.white : color,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.2,
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: isSolid ? Colors.white.withOpacity(0.22) : color.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(6),
+                            border: isSolid ? Border.all(color: Colors.white.withOpacity(0.35)) : null,
+                          ),
+                          child: Text(
+                            trend!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.outfit(
+                              color: isSolid ? Colors.white : color,
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.2,
+                            ),
                           ),
                         ),
                       ),
                   ],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      value,
-                      style: GoogleFonts.outfit(
-                        color: primaryTextColor,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        value,
+                        style: GoogleFonts.outfit(
+                          color: primaryTextColor,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -117,9 +123,9 @@ class StatCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.outfit(
                         color: secondaryTextColor,
-                        fontSize: 10,
+                        fontSize: 9.5,
                         fontWeight: FontWeight.w600,
-                        letterSpacing: 0.6,
+                        letterSpacing: 0.5,
                       ),
                     ),
                   ],

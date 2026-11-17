@@ -119,7 +119,7 @@ class DashboardScreen extends ConsumerWidget {
                   crossAxisCount: Responsive.getGridColumnCount(context, mobile: 2, tablet: 4, desktop: 4),
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
-                  childAspectRatio: Responsive.isMobile(context) ? 1.4 : 1.3,
+                  childAspectRatio: Responsive.isMobile(context) ? 1.25 : 1.3,
                   children: [
                     // Active Vehicles
                     MetricCard(
@@ -180,9 +180,9 @@ class DashboardScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.error.withValues(alpha: 0.08),
+        color: AppColors.error.withOpacity(0.08),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+        border: Border.all(color: AppColors.error.withOpacity(0.3)),
       ),
       child: Column(
         children: [

@@ -27,14 +27,14 @@ class DriverXAIScreen extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppTheme.surface,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppTheme.error.withValues(alpha: 0.4), width: 1.5),
+                border: Border.all(color: AppTheme.error.withOpacity(0.4), width: 1.5),
               ),
               child: Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppTheme.error.withValues(alpha: 0.1),
+                      color: AppTheme.error.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Icon(Icons.warning_amber_rounded, color: AppTheme.error, size: 28),
@@ -136,9 +136,9 @@ class DriverXAIScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.safe.withValues(alpha: 0.08),
+                color: AppTheme.safe.withOpacity(0.08),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppTheme.safe.withValues(alpha: 0.3)),
+                border: Border.all(color: AppTheme.safe.withOpacity(0.3)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -178,9 +178,19 @@ class DriverXAIScreen extends StatelessWidget {
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(factor, style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13)),
-            Text(impact, style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 11.5, color: color)),
+            Expanded(
+              child: Text(
+                factor,
+                style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              impact,
+              style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 11.5, color: color),
+            ),
           ],
         ),
         const SizedBox(height: 2),

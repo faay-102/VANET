@@ -37,10 +37,10 @@ class DriverHistoryScreen extends ConsumerWidget {
                 CircleAvatar(
                   radius: 18,
                   backgroundColor: isSafe
-                      ? AppTheme.safe.withValues(alpha: 0.12)
+                      ? AppTheme.safe.withOpacity(0.12)
                       : isWarning
-                          ? AppTheme.warning.withValues(alpha: 0.12)
-                          : AppTheme.primary.withValues(alpha: 0.12),
+                          ? AppTheme.warning.withOpacity(0.12)
+                          : AppTheme.primary.withOpacity(0.12),
                   child: Icon(
                     isSafe
                         ? Icons.check_circle_outline_rounded
@@ -61,9 +61,15 @@ class DriverHistoryScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(item['title'] as String, style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                          Expanded(
+                            child: Text(
+                              item['title'] as String,
+                              style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13.5),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
                           Text(item['time'] as String, style: GoogleFonts.outfit(fontSize: 11, color: AppTheme.textSecondary)),
                         ],
                       ),

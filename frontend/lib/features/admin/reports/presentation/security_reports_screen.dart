@@ -98,7 +98,7 @@ class _SecurityReportsScreenState extends ConsumerState<SecurityReportsScreen> {
               crossAxisCount: 2,
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
-              childAspectRatio: 1.5,
+              childAspectRatio: 1.35,
               children: [
                 _buildMetricCard('Malicious Vehicles', '15', AppTheme.error),
                 _buildMetricCard('Fake Emergencies', '3', AppTheme.warning),
@@ -222,7 +222,7 @@ class _SecurityReportsScreenState extends ConsumerState<SecurityReportsScreen> {
 
   Widget _buildMetricCard(String title, String value, Color color) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: AppTheme.surface,
         borderRadius: BorderRadius.circular(10),
@@ -237,18 +237,21 @@ class _SecurityReportsScreenState extends ConsumerState<SecurityReportsScreen> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.outfit(
-              fontSize: 11.5,
+              fontSize: 11,
               color: AppTheme.textSecondary,
               fontWeight: FontWeight.w500,
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            value,
-            style: GoogleFonts.outfit(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: color,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: GoogleFonts.outfit(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
             ),
           ),
         ],
@@ -260,31 +263,38 @@ class _SecurityReportsScreenState extends ConsumerState<SecurityReportsScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Row(
-          children: [
-            Container(
-              width: 7,
-              height: 7,
-              decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
+        Expanded(
+          child: Row(
+            children: [
+              Container(
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                ),
               ),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              title,
-              style: GoogleFonts.outfit(
-                fontSize: 11,
-                color: AppTheme.textPrimary,
-                fontWeight: FontWeight.w500,
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.outfit(
+                    fontSize: 10.5,
+                    color: AppTheme.textPrimary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
+        const SizedBox(width: 4),
         Text(
           percent,
           style: GoogleFonts.outfit(
-            fontSize: 11,
+            fontSize: 10.5,
             fontWeight: FontWeight.bold,
             color: AppTheme.textPrimary,
           ),

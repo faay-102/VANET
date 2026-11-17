@@ -71,7 +71,7 @@ class DriverHazardsScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: severityColor.withValues(alpha: 0.12),
+                  color: severityColor.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(icon, color: severityColor, size: 22),
@@ -103,9 +103,11 @@ class DriverHazardsScreen extends StatelessWidget {
           Text(description, style: GoogleFonts.outfit(fontSize: 12.5, color: AppTheme.textPrimary, height: 1.35)),
           const SizedBox(height: 10),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Reported: $time', style: GoogleFonts.outfit(fontSize: 11, color: AppTheme.textSecondary)),
+              Expanded(
+                child: Text('Reported: $time', style: GoogleFonts.outfit(fontSize: 11, color: AppTheme.textSecondary), overflow: TextOverflow.ellipsis),
+              ),
+              const SizedBox(width: 8),
               Text('Verified via V2X Consensus', style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.safe)),
             ],
           ),

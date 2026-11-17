@@ -31,9 +31,9 @@ class VehiclesScreen extends ConsumerWidget {
         scrolledUnderElevation: 0,
         centerTitle: false,
         title: Text(
-          'Vehicle Detection & Trust',
+          'Vehicle Detection',
           style: GoogleFonts.outfit(
-            fontSize: 18,
+            fontSize: 16.5,
             fontWeight: FontWeight.bold,
             color: AppTheme.textPrimary,
           ),
@@ -44,14 +44,14 @@ class VehiclesScreen extends ConsumerWidget {
             padding: const EdgeInsets.only(right: 12.0),
             child: ElevatedButton.icon(
               onPressed: () => _showAddVehicleDialog(context, ref),
-              icon: const Icon(Icons.add_rounded, size: 16),
-              label: const Text('Add Vehicle'),
+              icon: const Icon(Icons.add_rounded, size: 15),
+              label: const Text('Add Node'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                textStyle: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold),
+                textStyle: GoogleFonts.outfit(fontSize: 11.5, fontWeight: FontWeight.bold),
               ),
             ),
           ),
@@ -69,7 +69,7 @@ class VehiclesScreen extends ConsumerWidget {
                 decoration: BoxDecoration(
                   color: AppTheme.primaryLight,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppTheme.primary.withValues(alpha: 0.2)),
+                  border: Border.all(color: AppTheme.primary.withOpacity(0.2)),
                 ),
                 child: Row(
                   children: [
@@ -118,7 +118,7 @@ class VehiclesScreen extends ConsumerWidget {
               // 🔹 Table Header
               Container(
                 color: AppTheme.surface,
-                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+                padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
                 child: Row(
                   children: [
                     Expanded(
@@ -126,19 +126,19 @@ class VehiclesScreen extends ConsumerWidget {
                       child: Text(
                         'Vehicle ID',
                         style: GoogleFonts.outfit(
-                          fontSize: 12.5,
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                           color: AppTheme.textSecondary,
                         ),
                       ),
                     ),
                     Expanded(
-                      flex: 3,
+                      flex: 2,
                       child: Center(
                         child: Text(
-                          'Trust Score',
+                          'Trust',
                           style: GoogleFonts.outfit(
-                            fontSize: 12.5,
+                            fontSize: 12,
                             fontWeight: FontWeight.bold,
                             color: AppTheme.textSecondary,
                           ),
@@ -150,9 +150,9 @@ class VehiclesScreen extends ConsumerWidget {
                       child: Align(
                         alignment: Alignment.centerRight,
                         child: Text(
-                          'Status / Test Action',
+                          'Status / Action',
                           style: GoogleFonts.outfit(
-                            fontSize: 12.5,
+                            fontSize: 12,
                             fontWeight: FontWeight.bold,
                             color: AppTheme.textSecondary,
                           ),
@@ -180,7 +180,7 @@ class VehiclesScreen extends ConsumerWidget {
                       onTap: () => _showVehicleActionSheet(context, ref, v.id, v.trustScore, v.attackType),
                       child: Container(
                         color: AppTheme.surface,
-                        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 14.0),
+                        padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
                         child: Row(
                           children: [
                             // Vehicle ID & Type Badge
@@ -208,20 +208,15 @@ class VehiclesScreen extends ConsumerWidget {
 
                             // Trust Score Bar & Number
                             Expanded(
-                              flex: 3,
+                              flex: 2,
                               child: Center(
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      '${v.trustScore.toInt()}%',
-                                      style: GoogleFonts.outfit(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        color: statusColor,
-                                      ),
-                                    ),
-                                  ],
+                                child: Text(
+                                  '${v.trustScore.toInt()}%',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: statusColor,
+                                  ),
                                 ),
                               ),
                             ),
@@ -231,28 +226,36 @@ class VehiclesScreen extends ConsumerWidget {
                               flex: 4,
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.end,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: statusColor.withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    child: Text(
-                                      v.trustStatus,
-                                      style: GoogleFonts.outfit(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                        color: statusColor,
+                                  Flexible(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                                      decoration: BoxDecoration(
+                                        color: statusColor.withOpacity(0.12),
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      child: Text(
+                                        v.trustStatus,
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.bold,
+                                          color: statusColor,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
-                                  // Quick Attack Test Button
-                                  IconButton(
-                                    icon: const Icon(Icons.bolt_rounded, size: 20, color: Color(0xFFE45D3F)),
-                                    tooltip: 'Inject Test Attack',
-                                    onPressed: () => _showInjectAttackSheet(context, ref, v.id),
+                                  const SizedBox(width: 4),
+                                  // Quick Attack Test Button (Compact)
+                                  InkWell(
+                                    onTap: () => _showInjectAttackSheet(context, ref, v.id),
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(3),
+                                      child: const Icon(Icons.bolt_rounded, size: 18, color: Color(0xFFE45D3F)),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -437,7 +440,7 @@ class VehiclesScreen extends ConsumerWidget {
       contentPadding: const EdgeInsets.symmetric(vertical: 2),
       leading: CircleAvatar(
         radius: 18,
-        backgroundColor: const Color(0xFFE45D3F).withValues(alpha: 0.12),
+        backgroundColor: const Color(0xFFE45D3F).withOpacity(0.12),
         child: Icon(icon, color: const Color(0xFFE45D3F), size: 18),
       ),
       title: Text(title, style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13.5)),

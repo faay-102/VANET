@@ -137,7 +137,15 @@ class DriverSafeRouteScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(eta, style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13)),
-              Text(trustRating, style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 12, color: trustColor)),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  trustRating,
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 11.5, color: trustColor),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ],
           ),
           const Divider(height: 16),

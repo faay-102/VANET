@@ -69,7 +69,7 @@ class AccidentAlertScreen extends StatelessWidget {
                 width: 100,
                 height: 100,
                 decoration: BoxDecoration(
-                  color: AppTheme.error.withValues(alpha: 0.1),
+                  color: AppTheme.error.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
                 child: const Center(
@@ -204,16 +204,18 @@ class AccidentAlertScreen extends StatelessWidget {
 
   Widget _buildDetailRow(String label, String value, {bool isHighlighted = false, Color? highlightColor}) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: GoogleFonts.outfit(
-            color: AppTheme.textSecondary,
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
+        Expanded(
+          child: Text(
+            label,
+            style: GoogleFonts.outfit(
+              color: AppTheme.textSecondary,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
+        const SizedBox(width: 8),
         Text(
           value,
           style: GoogleFonts.outfit(

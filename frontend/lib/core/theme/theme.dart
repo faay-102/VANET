@@ -53,7 +53,7 @@ class AppTheme {
       boxShadow: hasShadow
           ? [
               BoxShadow(
-                color: const Color(0xFFE45D3F).withValues(alpha: 0.25),
+                color: const Color(0xFFE45D3F).withOpacity(0.25),
                 blurRadius: 16,
                 offset: const Offset(0, 6),
               ),
@@ -79,7 +79,7 @@ class AppTheme {
       boxShadow: hasShadow
           ? [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
+                color: Colors.black.withOpacity(0.04),
                 blurRadius: 10,
                 offset: const Offset(0, 2),
               ),

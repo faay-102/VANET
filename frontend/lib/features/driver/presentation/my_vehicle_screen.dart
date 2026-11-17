@@ -32,7 +32,7 @@ class MyVehicleScreen extends ConsumerWidget {
                 children: [
                   CircleAvatar(
                     radius: 36,
-                    backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
+                    backgroundColor: AppTheme.primary.withOpacity(0.1),
                     child: const Icon(Icons.directions_car_rounded, size: 40, color: AppTheme.primary),
                   ),
                   const SizedBox(height: 12),
@@ -116,9 +116,9 @@ class MyVehicleScreen extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withOpacity(0.12),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Text(
         label,
@@ -137,9 +137,9 @@ class MyVehicleScreen extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(title, style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.textPrimary)),
+            Expanded(child: Text(title, style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.textPrimary))),
+            const SizedBox(width: 8),
             Text(value, style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.bold, color: color)),
           ],
         ),
@@ -159,10 +159,16 @@ class MyVehicleScreen extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.textSecondary)),
-          Text(value, style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+          Expanded(child: Text(label, style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.textSecondary))),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
+            ),
+          ),
         ],
       ),
     );

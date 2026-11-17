@@ -41,16 +41,16 @@ class FakeEmergencyScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
               decoration: BoxDecoration(
-                color: AppTheme.error.withValues(alpha: 0.08),
+                color: AppTheme.error.withOpacity(0.08),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.error.withValues(alpha: 0.35), width: 1.2),
+                border: Border.all(color: AppTheme.error.withOpacity(0.35), width: 1.2),
               ),
               child: Column(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppTheme.error.withValues(alpha: 0.12),
+                      color: AppTheme.error.withOpacity(0.12),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.gpp_bad_outlined, color: AppTheme.error, size: 36),
@@ -191,15 +191,23 @@ class FakeEmergencyScreen extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.5),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: GoogleFonts.outfit(color: AppTheme.textSecondary, fontSize: 11.5)),
-          Text(
-            value,
-            style: GoogleFonts.outfit(
-              fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
-              color: color ?? AppTheme.textPrimary,
-              fontSize: 12,
+          Expanded(
+            child: Text(
+              label,
+              style: GoogleFonts.outfit(color: AppTheme.textSecondary, fontSize: 11.5),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: GoogleFonts.outfit(
+                fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+                color: color ?? AppTheme.textPrimary,
+                fontSize: 12,
+              ),
             ),
           ),
         ],

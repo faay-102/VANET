@@ -58,7 +58,7 @@ class NavigationShell extends StatelessWidget {
             child: NavigationBar(
               selectedIndex: navigationShell.currentIndex.clamp(0, 4),
               backgroundColor: Colors.white,
-              indicatorColor: const Color(0xFFE45D3F).withValues(alpha: 0.14),
+              indicatorColor: const Color(0xFFE45D3F).withOpacity(0.14),
               elevation: 0,
               height: 64,
               labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,

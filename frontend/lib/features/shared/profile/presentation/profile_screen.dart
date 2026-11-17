@@ -55,9 +55,9 @@ class ProfileScreen extends ConsumerWidget {
                   height: 100,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: AppTheme.primary.withValues(alpha: 0.1),
+                    color: AppTheme.primary.withOpacity(0.1),
                     border: Border.all(
-                      color: AppTheme.primary.withValues(alpha: 0.35),
+                      color: AppTheme.primary.withOpacity(0.35),
                       width: 2.0,
                     ),
                     boxShadow: const [
@@ -212,7 +212,7 @@ class ProfileScreen extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppTheme.primary.withValues(alpha: 0.1),
+              color: AppTheme.primary.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: AppTheme.primary, size: 20),

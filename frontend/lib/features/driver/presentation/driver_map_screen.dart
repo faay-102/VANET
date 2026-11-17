@@ -114,7 +114,9 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
 
     // 3. Robust Autonomous Reaction Logic (Fixed: Zero Shaking)
     // Identify which discrete lane the Challenger is in: -1 (Left), 0 (Center), 1 (Right)
-    final challengerLaneIndex = ((targetPos.dx - cx) / 75.0).round().clamp(-1, 1);
+    final roadWidth = math.min(size.width * 0.90, 340.0);
+    final laneWidth = roadWidth / 3.0;
+    final challengerLaneIndex = ((targetPos.dx - cx) / (laneWidth * 0.75)).round().clamp(-1, 1);
     final isSameLane = challengerLaneIndex == _hostLaneIndex;
     final isAheadDangerous = isSameLane && dy < 0 && dy > -180.0;
     final isCritClose = isSameLane && dy < 0 && dy > -65.0;
@@ -123,7 +125,7 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
       if (_interactiveCarType == 'ambulance') {
         // Preemption Protocol: Siren detected -> Yield to Right Lane (Lane 3)
         _hostLaneIndex = 1;
-        _trainedCarLaneOffset = 110.0;
+        _trainedCarLaneOffset = laneWidth;
         _isDodging = true;
         _dodgeDirection = 1;
         _isEmergencyBraking = false;
@@ -151,7 +153,7 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
           _dodgeCooldownTicks = 40;
         }
 
-        _trainedCarLaneOffset = _hostLaneIndex * 110.0;
+        _trainedCarLaneOffset = _hostLaneIndex * laneWidth;
         _isDodging = true;
         _dodgeDirection = _hostLaneIndex;
         _isEmergencyBraking = false;
@@ -220,19 +222,22 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
   void _onPanUpdate(DragUpdateDetails details) {
     final size = MediaQuery.of(context).size;
     final cx = size.width * 0.5;
+    final roadWidth = math.min(size.width * 0.90, 340.0);
+    final laneWidth = roadWidth / 3.0;
+    final maxOffset = (roadWidth * 0.5) - 30.0;
 
     if (_currentlyDragging == 'host') {
       // Direct Touch Drag on Host Car!
       setState(() {
-        _trainedCarCurrentX = (details.localPosition.dx - cx).clamp(-140.0, 140.0);
+        _trainedCarCurrentX = (details.localPosition.dx - cx).clamp(-maxOffset, maxOffset);
         _trainedCarLaneOffset = _trainedCarCurrentX;
-        _hostLaneIndex = (_trainedCarCurrentX / 75.0).round().clamp(-1, 1);
+        _hostLaneIndex = (_trainedCarCurrentX / (laneWidth * 0.75)).round().clamp(-1, 1);
       });
     } else {
       // Direct Touch Drag on Challenger Car!
       setState(() {
         _interactiveCarPos = Offset(
-          details.localPosition.dx.clamp(40.0, size.width - 40.0),
+          details.localPosition.dx.clamp(30.0, size.width - 30.0),
           details.localPosition.dy.clamp(80.0, size.height - 120.0),
         );
       });
@@ -248,6 +253,8 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
   void _moveCar(double dX, double dY) {
     final size = MediaQuery.of(context).size;
     final cx = size.width * 0.5;
+    final roadWidth = math.min(size.width * 0.90, 340.0);
+    final laneWidth = roadWidth / 3.0;
 
     if (_activeControl == 'host') {
       // Steer Host!
@@ -255,7 +262,7 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
         if (dX != 0) {
           // Lane Shift Left / Right
           _hostLaneIndex = (_hostLaneIndex + (dX > 0 ? 1 : -1)).clamp(-1, 1);
-          _trainedCarLaneOffset = _hostLaneIndex * 110.0;
+          _trainedCarLaneOffset = _hostLaneIndex * laneWidth;
           _trainedCarCurrentX = _trainedCarLaneOffset;
         }
         if (dY < 0) {
@@ -269,7 +276,7 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
       if (_interactiveCarPos == null) return;
       setState(() {
         _interactiveCarPos = Offset(
-          (_interactiveCarPos!.dx + dX).clamp(40.0, size.width - 40.0),
+          (_interactiveCarPos!.dx + dX).clamp(30.0, size.width - 30.0),
           (_interactiveCarPos!.dy + dY).clamp(80.0, size.height - 120.0),
         );
       });
@@ -333,7 +340,7 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
                 children: [
                   // Header Decision Card
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
@@ -349,7 +356,7 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
                     child: Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(8),
+                          padding: const EdgeInsets.all(7),
                           decoration: BoxDecoration(
                             color: _aiDecisionColor.withOpacity(0.12),
                             shape: BoxShape.circle,
@@ -359,10 +366,10 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
                                 ? Icons.warning_rounded
                                 : (_isDodging ? Icons.swap_horiz_rounded : Icons.verified_user_rounded),
                             color: _aiDecisionColor,
-                            size: 22,
+                            size: 20,
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -370,66 +377,87 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
                             children: [
                               Row(
                                 children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: _aiDecisionColor.withOpacity(0.15),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      _isEmergencyBraking
-                                          ? 'EMERGENCY ACTION'
-                                          : (_isDodging ? 'AUTONOMOUS REACTION' : 'ONLINE MONITORING'),
-                                      style: GoogleFonts.outfit(
-                                        color: _aiDecisionColor,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
+                                  Flexible(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: _aiDecisionColor.withOpacity(0.15),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        _isEmergencyBraking
+                                            ? 'EMERGENCY'
+                                            : (_isDodging ? 'REACTION' : 'MONITORING'),
+                                        style: GoogleFonts.outfit(
+                                          color: _aiDecisionColor,
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: 6),
                                   Text(
-                                    'HOST (TRAINED)',
+                                    'HOST',
                                     style: GoogleFonts.outfit(
-                                      fontSize: 10.5,
+                                      fontSize: 10.0,
                                       color: const Color(0xFF7C3AED),
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 3),
+                              const SizedBox(height: 2),
                               Text(
                                 _aiDecision,
                                 style: GoogleFonts.outfit(
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 13.0,
+                                  fontSize: 12.5,
                                   color: const Color(0xFF0F172A),
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               Text(
-                                'Distance: ${distMeters.toStringAsFixed(1)}m | Host Speed: ${_trainedCarSpeed.toStringAsFixed(0)} km/h',
+                                '${distMeters.toStringAsFixed(1)}m | ${_trainedCarSpeed.toStringAsFixed(0)} km/h',
                                 style: GoogleFonts.outfit(
-                                  fontSize: 11,
+                                  fontSize: 10.5,
                                   color: const Color(0xFF475569),
                                 ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ],
                           ),
                         ),
+                        const SizedBox(width: 8),
                         // Vehicle Spawner Modal
-                        ElevatedButton.icon(
-                          onPressed: _showVehiclePickerModal,
-                          icon: const Icon(Icons.add_road_rounded, size: 15),
-                          label: const Text('Add Vehicle'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFE45D3F),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            textStyle: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.bold),
+                        InkWell(
+                          onTap: _showVehiclePickerModal,
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE45D3F),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.add_rounded, size: 14, color: Colors.white),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Add Node',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
@@ -438,7 +466,7 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
 
                   const SizedBox(height: 8),
 
-                  // ACTIVE CAR CONTROL SWITCHER & AUTOPILOT TOGGLE
+                  // ACTIVE CAR CONTROL SWITCHER & AUTOPILOT TOGGLE (Responsive Wrap)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
@@ -446,63 +474,71 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
-                    child: Row(
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      alignment: WrapAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'TOUCH TO CONTROL:',
-                          style: GoogleFonts.outfit(fontSize: 9.5, fontWeight: FontWeight.bold, color: const Color(0xFF64748B)),
-                        ),
-                        const SizedBox(width: 8),
-                        // Host Toggle Pill
-                        InkWell(
-                          onTap: () => setState(() => _activeControl = 'host'),
-                          borderRadius: BorderRadius.circular(6),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: _activeControl == 'host' ? const Color(0xFF7C3AED) : Colors.white,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'CONTROL:',
+                              style: GoogleFonts.outfit(fontSize: 9.5, fontWeight: FontWeight.bold, color: const Color(0xFF64748B)),
+                            ),
+                            const SizedBox(width: 6),
+                            // Host Toggle Pill
+                            InkWell(
+                              onTap: () => setState(() => _activeControl = 'host'),
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: _activeControl == 'host' ? const Color(0xFF7C3AED) : const Color(0xFFCBD5E1)),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.touch_app_rounded, size: 12, color: _activeControl == 'host' ? Colors.white : const Color(0xFF7C3AED)),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Host (Purple)',
-                                  style: GoogleFonts.outfit(fontSize: 10.5, fontWeight: FontWeight.bold, color: _activeControl == 'host' ? Colors.white : const Color(0xFF0F172A)),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: _activeControl == 'host' ? const Color(0xFF7C3AED) : Colors.white,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: _activeControl == 'host' ? const Color(0xFF7C3AED) : const Color(0xFFCBD5E1)),
                                 ),
-                              ],
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.touch_app_rounded, size: 12, color: _activeControl == 'host' ? Colors.white : const Color(0xFF7C3AED)),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Host',
+                                      style: GoogleFonts.outfit(fontSize: 10.5, fontWeight: FontWeight.bold, color: _activeControl == 'host' ? Colors.white : const Color(0xFF0F172A)),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        // Challenger Toggle Pill
-                        InkWell(
-                          onTap: () => setState(() => _activeControl = 'challenger'),
-                          borderRadius: BorderRadius.circular(6),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: _activeControl == 'challenger' ? const Color(0xFFDC2626) : Colors.white,
+                            const SizedBox(width: 6),
+                            // Challenger Toggle Pill
+                            InkWell(
+                              onTap: () => setState(() => _activeControl = 'challenger'),
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: _activeControl == 'challenger' ? const Color(0xFFDC2626) : const Color(0xFFCBD5E1)),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.touch_app_rounded, size: 12, color: _activeControl == 'challenger' ? Colors.white : const Color(0xFFDC2626)),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Challenger (Red)',
-                                  style: GoogleFonts.outfit(fontSize: 10.5, fontWeight: FontWeight.bold, color: _activeControl == 'challenger' ? Colors.white : const Color(0xFF0F172A)),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: _activeControl == 'challenger' ? const Color(0xFFDC2626) : Colors.white,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: _activeControl == 'challenger' ? const Color(0xFFDC2626) : const Color(0xFFCBD5E1)),
                                 ),
-                              ],
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.touch_app_rounded, size: 12, color: _activeControl == 'challenger' ? Colors.white : const Color(0xFFDC2626)),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Challenger',
+                                      style: GoogleFonts.outfit(fontSize: 10.5, fontWeight: FontWeight.bold, color: _activeControl == 'challenger' ? Colors.white : const Color(0xFF0F172A)),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                          ),
+                          ],
                         ),
-                        const Spacer(),
                         // Autopilot Toggle
                         InkWell(
                           onTap: () => setState(() => _aiAutopilot = !_aiAutopilot),
@@ -514,9 +550,20 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
                               borderRadius: BorderRadius.circular(6),
                               border: Border.all(color: _aiAutopilot ? const Color(0xFF059669) : const Color(0xFFCBD5E1)),
                             ),
-                            child: Text(
-                              _aiAutopilot ? 'AI Autopilot: ON' : 'AI Autopilot: OFF',
-                              style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.bold, color: _aiAutopilot ? const Color(0xFF059669) : const Color(0xFF64748B)),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  _aiAutopilot ? Icons.smart_toy_rounded : Icons.smart_toy_outlined,
+                                  size: 12,
+                                  color: _aiAutopilot ? const Color(0xFF059669) : const Color(0xFF64748B),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _aiAutopilot ? 'AI Autopilot: ON' : 'AI Autopilot: OFF',
+                                  style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.bold, color: _aiAutopilot ? const Color(0xFF059669) : const Color(0xFF64748B)),
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -531,7 +578,7 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
           // 3. FLOATING ON-SCREEN STEERING CONTROLS (D-PAD)
           Positioned(
             right: 14,
-            bottom: 84,
+            bottom: 96,
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
@@ -573,13 +620,13 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
             ),
           ),
 
-          // 4. BOTTOM VANET HIGHWAY METRICS HUD
+          // 4. BOTTOM VANET HIGHWAY METRICS HUD (Horizontal Scrollable for Mobile)
           Positioned(
             bottom: 14,
             left: 14,
             right: 14,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
@@ -592,17 +639,26 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
                   ),
                 ],
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _statTile('ACTIVE DRIVER', _activeControl == 'host' ? 'Host (Purple)' : 'Challenger', const Color(0xFF0F172A), Icons.touch_app_rounded),
-                  Container(height: 28, width: 1, color: const Color(0xFFE2E8F0)),
-                  _statTile('DISTANCE', '${distMeters.toStringAsFixed(1)} m', distMeters < 12 ? const Color(0xFFDC2626) : const Color(0xFF0284C7), Icons.straighten_rounded),
-                  Container(height: 28, width: 1, color: const Color(0xFFE2E8F0)),
-                  _statTile('EVALUATED TRUST', '${_liveTrustScore.toStringAsFixed(0)}%', _liveTrustScore >= 75 ? const Color(0xFF059669) : const Color(0xFFDC2626), Icons.shield_rounded),
-                  Container(height: 28, width: 1, color: const Color(0xFFE2E8F0)),
-                  _statTile('AI REACTION', _isEmergencyBraking ? 'BRAKING' : (_isDodging ? 'DODGING' : 'CRUISING'), _isEmergencyBraking ? const Color(0xFFDC2626) : (_isDodging ? const Color(0xFFEA580C) : const Color(0xFF059669)), Icons.psychology_rounded),
-                ],
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: Row(
+                  children: [
+                    _statTile('ACTIVE DRIVER', _activeControl == 'host' ? 'Host (Purple)' : 'Challenger', const Color(0xFF0F172A), Icons.touch_app_rounded),
+                    const SizedBox(width: 14),
+                    Container(height: 28, width: 1, color: const Color(0xFFE2E8F0)),
+                    const SizedBox(width: 14),
+                    _statTile('DISTANCE', '${distMeters.toStringAsFixed(1)} m', distMeters < 12 ? const Color(0xFFDC2626) : const Color(0xFF0284C7), Icons.straighten_rounded),
+                    const SizedBox(width: 14),
+                    Container(height: 28, width: 1, color: const Color(0xFFE2E8F0)),
+                    const SizedBox(width: 14),
+                    _statTile('EVALUATED TRUST', '${_liveTrustScore.toStringAsFixed(0)}%', _liveTrustScore >= 75 ? const Color(0xFF059669) : const Color(0xFFDC2626), Icons.shield_rounded),
+                    const SizedBox(width: 14),
+                    Container(height: 28, width: 1, color: const Color(0xFFE2E8F0)),
+                    const SizedBox(width: 14),
+                    _statTile('AI REACTION', _isEmergencyBraking ? 'BRAKING' : (_isDodging ? 'DODGING' : 'CRUISING'), _isEmergencyBraking ? const Color(0xFFDC2626) : (_isDodging ? const Color(0xFFEA580C) : const Color(0xFF059669)), Icons.psychology_rounded),
+                  ],
+                ),
               ),
             ),
           ),
@@ -648,13 +704,15 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
   void _showVehiclePickerModal() {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
         return SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -781,8 +839,9 @@ class _VanetInteractivePainter extends CustomPainter {
     // 1. Terrain Grass Lawn
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), Paint()..color = const Color(0xFFF0FDF4));
 
-    // 2. 3-Lane Smart Highway (340px wide)
-    const double roadWidth = 340.0;
+    // 2. 3-Lane Smart Highway (Dynamic Width for Responsive Mobile Screens)
+    final double roadWidth = math.min(size.width * 0.90, 340.0);
+    final double laneWidth = roadWidth / 3.0;
     final roadRect = Rect.fromCenter(center: Offset(cx, size.height * 0.5), width: roadWidth, height: size.height);
     canvas.drawRect(roadRect, Paint()..color = const Color(0xFF334155));
 
@@ -793,8 +852,8 @@ class _VanetInteractivePainter extends CustomPainter {
 
     // 3. Moving Lane Dashed Dividers
     final animSpeed = isBraking ? 0.0 : (trainedCarSpeed / 60.0);
-    _drawMovingDashedLine(canvas, cx - 55, size.height, (cycle * animSpeed) % 1.0);
-    _drawMovingDashedLine(canvas, cx + 55, size.height, (cycle * animSpeed) % 1.0);
+    _drawMovingDashedLine(canvas, cx - laneWidth * 0.5, size.height, (cycle * animSpeed) % 1.0);
+    _drawMovingDashedLine(canvas, cx + laneWidth * 0.5, size.height, (cycle * animSpeed) % 1.0);
 
     // 4. Directional Road Markings
     _drawDirectionalArrows(canvas, cx, size.height, (cycle * animSpeed) % 1.0);

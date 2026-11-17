@@ -129,9 +129,11 @@ class LiveNetworkPreview extends StatelessWidget {
 
         const SizedBox(height: 10),
 
-        // Status Legend Row
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        // Status Legend Row (Responsive Wrap for Mobile)
+        Wrap(
+          spacing: 12,
+          runSpacing: 6,
+          alignment: WrapAlignment.center,
           children: [
             _buildLegendDot('Trusted', AppColors.safe),
             _buildLegendDot('Suspicious', AppColors.warning),

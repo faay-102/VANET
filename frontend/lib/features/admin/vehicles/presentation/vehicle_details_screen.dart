@@ -71,15 +71,18 @@ class VehicleDetailsScreen extends ConsumerWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'VEHICLE OVERVIEW & KINEMATICS',
-                        style: GoogleFonts.outfit(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 11,
-                          letterSpacing: 0.8,
-                          color: AppTheme.textPrimary,
+                      Expanded(
+                        child: Text(
+                          'VEHICLE OVERVIEW & KINEMATICS',
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                            letterSpacing: 0.8,
+                            color: AppTheme.textPrimary,
+                          ),
                         ),
                       ),
+                      const SizedBox(width: 8),
                       TrustBadge(status: vehicle.trustStatus),
                     ],
                   ),
@@ -208,12 +211,17 @@ class VehicleDetailsScreen extends ConsumerWidget {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
                 icon: const Icon(Icons.analytics_outlined, size: 18),
-                label: Text(
-                  'INSPECT AI EXPLANATION (SHAP & LIME)',
-                  style: GoogleFonts.outfit(
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
-                    fontSize: 12,
+                label: Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      'INSPECT AI EXPLANATION (SHAP & LIME)',
+                      style: GoogleFonts.outfit(
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                        fontSize: 12,
+                      ),
+                    ),
                   ),
                 ),
                 onPressed: () => context.push('/vehicles/$id/explanation'),
@@ -232,16 +240,24 @@ class VehicleDetailsScreen extends ConsumerWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: GoogleFonts.outfit(color: AppTheme.textSecondary, fontSize: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: GoogleFonts.outfit(color: AppTheme.textSecondary, fontSize: 12),
+            ),
           ),
-          Text(
-            value,
-            style: GoogleFonts.outfit(
-              fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
-              fontSize: 12.5,
-              color: color ?? AppTheme.textPrimary,
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: GoogleFonts.outfit(
+                fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+                fontSize: 12.5,
+                color: color ?? AppTheme.textPrimary,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

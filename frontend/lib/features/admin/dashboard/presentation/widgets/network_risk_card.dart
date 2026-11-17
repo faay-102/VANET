@@ -114,9 +114,9 @@ class NetworkRiskCard extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
                         decoration: BoxDecoration(
-                          color: riskColor.withValues(alpha: 0.1),
+                          color: riskColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: riskColor.withValues(alpha: 0.3)),
+                          border: Border.all(color: riskColor.withOpacity(0.3)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,

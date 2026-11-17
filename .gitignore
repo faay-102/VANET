@@ -35,7 +35,9 @@ wheels/
 .coverage
 htmlcov/
 
-# Flutter / Dart / Pub
+# Flutter / Dart / Pub / Android APK
+*.apk
+VANET_Security_App.apk
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies

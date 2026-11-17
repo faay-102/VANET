@@ -169,7 +169,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        shadowColor: orangeAccent.withValues(alpha: 0.3),
+                        shadowColor: orangeAccent.withOpacity(0.3),
                       ),
                       onPressed: _onNext,
                       child: Text(

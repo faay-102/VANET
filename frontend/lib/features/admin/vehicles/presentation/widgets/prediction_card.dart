@@ -52,18 +52,21 @@ class PredictionCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                explanation.modelName,
-                style: GoogleFonts.outfit(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14.5,
-                  color: AppTheme.textPrimary,
+              Expanded(
+                child: Text(
+                  explanation.modelName,
+                  style: GoogleFonts.outfit(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14.0,
+                    color: AppTheme.textPrimary,
+                  ),
                 ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: severityColor.withValues(alpha: 0.08),
+                  color: severityColor.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
@@ -71,7 +74,7 @@ class PredictionCard extends StatelessWidget {
                   style: GoogleFonts.outfit(
                     fontWeight: FontWeight.bold,
                     color: severityColor,
-                    fontSize: 12,
+                    fontSize: 11.5,
                   ),
                 ),
               ),
