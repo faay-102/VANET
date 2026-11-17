@@ -32,7 +32,7 @@ class LiveNetworkPreview extends StatelessWidget {
             border: Border.all(color: const Color(0xFFE2E8F0)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
+                color: Colors.black.withOpacity(0.04),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
@@ -100,7 +100,7 @@ class LiveNetworkPreview extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1E293B).withValues(alpha: 0.92),
+                          color: const Color(0xFF1E293B).withOpacity(0.92),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: Colors.white24),
                         ),
@@ -177,7 +177,7 @@ class LiveNetworkPreview extends StatelessWidget {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: (isMalicious ? Colors.red : color).withValues(alpha: 0.5),
+                  color: (isMalicious ? Colors.red : color).withOpacity(0.5),
                   blurRadius: 8,
                   offset: const Offset(0, 3),
                 ),
@@ -206,10 +206,10 @@ class LiveNetworkPreview extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: statusColor.withValues(alpha: 0.6), width: 0.8),
+              border: Border.all(color: statusColor.withOpacity(0.6), width: 0.8),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
+                  color: Colors.black.withOpacity(0.06),
                   blurRadius: 4,
                 ),
               ],
@@ -240,7 +240,7 @@ class LiveNetworkPreview extends StatelessWidget {
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: color.withValues(alpha: 0.6),
+                color: color.withOpacity(0.6),
                 blurRadius: 4,
               ),
             ],
@@ -289,7 +289,7 @@ class _CyberRoadGridPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     final activeRoutePaint = Paint()
-      ..color = const Color(0xFF10B981).withValues(alpha: 0.85) // Emergency Green Corridor
+      ..color = const Color(0xFF10B981).withOpacity(0.85) // Emergency Green Corridor
       ..strokeWidth = 6
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;

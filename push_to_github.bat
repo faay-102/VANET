@@ -15,7 +15,7 @@ git add .
 
 echo.
 echo [3/4] Committing changes...
-git commit -m "feat: real-time interactive AI simulator with touch control, trained car dodge reactions, and authentic trust math"
+git commit -m "feat: direct touch control for Host and Challenger cars with state-latched evasive lane change (zero jitter)"
 
 echo.
 echo [4/4] Pushing to main branch...

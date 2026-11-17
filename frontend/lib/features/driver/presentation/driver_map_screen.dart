@@ -16,28 +16,35 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
   late AnimationController _animController;
   bool _isPaused = false;
 
-  // --- Interactive Vehicle & AI Testing State ---
-  // Position of user-controlled / spawned vehicle (null = auto-looping scenario)
+  // --- Active Interactive Control Selection ---
+  // 'host' = user controls purple Host car
+  // 'challenger' = user controls red/other challenger car
+  String _activeControl = 'host';
+  String? _currentlyDragging; // 'host' or 'challenger'
+  bool _aiAutopilot = true; // Auto evasive dodge vs pure manual driver control
+
+  // Challenger Vehicle State
   Offset? _interactiveCarPos;
   String _interactiveCarType = 'speed_attack'; // 'civilian', 'speed_attack', 'gps_spoof', 'ambulance'
   String _interactiveCarLabel = 'ATK-707 (Speed Anomaly)';
   double _interactiveCarSpeed = 135.0; // km/h
-  bool _isDragging = false;
-  bool _showDpad = true;
 
-  // Trained Host Car (V-101) Dynamic Physical State
-  double _trainedCarLaneOffset = 0.0; // Target X offset: -110 (Lane 1), 0 (Lane 2), 110 (Lane 3)
-  double _trainedCarCurrentX = 0.0; // Smoothly interpolated position
-  double _trainedCarSpeed = 60.0; // km/h
+  // Host Car Physical State (Purple-Blue, 'Host')
+  double _trainedCarLaneOffset = 0.0; // Target X: -110 (Lane 1), 0 (Lane 2), 110 (Lane 3)
+  double _trainedCarCurrentX = 0.0;   // Smoothly interpolated position
+  double _trainedCarSpeed = 60.0;     // km/h
+  int _hostLaneIndex = 0;             // -1 = Left, 0 = Center, 1 = Right
+  int _dodgeCooldownTicks = 0;        // Latching counter to prevent lane-hunting/shaking
+
   bool _isEmergencyBraking = false;
   bool _isDodging = false;
   int _dodgeDirection = 0; // -1 = Left, +1 = Right
-  String _aiDecision = 'V2X CRUISE: MONITORING 10Hz BSMs';
+  String _aiDecision = 'V2X CRUISE: SAFE HEADWAY VERIFIED';
   Color _aiDecisionColor = const Color(0xFF059669);
 
   // Mathematical Beta-Distribution Trust State: T = alpha / (alpha + beta)
-  double _alpha = 88.0; // Positive consistent packets
-  double _beta = 12.0;  // Anomaly penalties
+  double _alpha = 88.0;
+  double _beta = 12.0;
   double _liveTrustScore = 88.0;
 
   @override
@@ -67,15 +74,15 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
     });
   }
 
-  // --- Real-Time AI Autonomous Reaction Loop ---
+  // --- Real-Time AI Autonomous Reaction Loop (With State Hysteresis) ---
   void _onTick() {
     if (!mounted) return;
     final size = MediaQuery.maybeOf(context)?.size ?? const Size(400, 800);
     final cx = size.width * 0.5;
     final playerY = size.height * 0.55;
 
-    // Initialize interactive car position on first tick if null
-    _interactiveCarPos ??= Offset(cx, size.height * 0.32);
+    // Initialize challenger car position on first tick if null
+    _interactiveCarPos ??= Offset(cx, size.height * 0.30);
 
     final targetPos = _interactiveCarPos!;
     final playerPos = Offset(cx + _trainedCarCurrentX, playerY);
@@ -100,109 +107,173 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
       _beta = 1.0;
       _liveTrustScore = 99.0; // Authenticated PKI
     } else {
-      // Civilian
       _alpha = 94.0;
       _beta = 6.0;
       _liveTrustScore = (_alpha / (_alpha + _beta)) * 100.0; // 94% Trusted
     }
 
-    // 3. AI Autonomous Reaction Engine
-    // Check if test vehicle is in our lane or cutting into our path
-    final isSameLane = dx.abs() < 55.0;
-    final isAheadDangerous = dy < 0 && dy > -150.0; // Ahead within 150px
-    final isTailgatingDangerous = dy > 0 && dy < 110.0; // Behind within 110px
+    // 3. Robust Autonomous Reaction Logic (Fixed: Zero Shaking)
+    // Identify which discrete lane the Challenger is in: -1 (Left), 0 (Center), 1 (Right)
+    final challengerLaneIndex = ((targetPos.dx - cx) / 75.0).round().clamp(-1, 1);
+    final isSameLane = challengerLaneIndex == _hostLaneIndex;
+    final isAheadDangerous = isSameLane && dy < 0 && dy > -180.0;
+    final isCritClose = isSameLane && dy < 0 && dy > -65.0;
 
-    if (_interactiveCarType == 'ambulance') {
-      // Preemption Protocol: Emergency Siren detected -> Yield to Right Lane (Lane 3)
-      _trainedCarLaneOffset = 110.0;
-      _isDodging = true;
-      _dodgeDirection = 1;
-      _isEmergencyBraking = false;
-      _trainedCarSpeed = 45.0;
-      _aiDecision = 'PREEMPTION YIELD: CLEARING EXPRESS CORRIDOR';
-      _aiDecisionColor = const Color(0xFF0284C7);
-    } else if (isSameLane && (isAheadDangerous || isTailgatingDangerous)) {
-      // Threat in current lane: Autonomous Decision
-      if (distMeters < 8.0) {
-        // Critical Proximity: Emergency Brake + Collision Avoidance
+    if (_aiAutopilot && _currentlyDragging != 'host') {
+      if (_interactiveCarType == 'ambulance') {
+        // Preemption Protocol: Siren detected -> Yield to Right Lane (Lane 3)
+        _hostLaneIndex = 1;
+        _trainedCarLaneOffset = 110.0;
+        _isDodging = true;
+        _dodgeDirection = 1;
+        _isEmergencyBraking = false;
+        _trainedCarSpeed = 45.0;
+        _aiDecision = 'PREEMPTION YIELD: CLEARING EXPRESS CORRIDOR';
+        _aiDecisionColor = const Color(0xFF0284C7);
+      } else if (isCritClose) {
+        // Critical collision hazard: Emergency Brake
         _isEmergencyBraking = true;
         _trainedCarSpeed = 0.0;
         _aiDecision = 'COLLISION THREAT: EMERGENCY BRAKE ACTIVATED';
         _aiDecisionColor = const Color(0xFFDC2626);
-      } else {
-        // Safe Dodge: Evaluate Adjacent Lanes for Evasive Lane Change
+      } else if (isAheadDangerous) {
+        // Threat ahead in same lane! Pick an open lane and LATCH to it
+        if (_dodgeCooldownTicks <= 0) {
+          if (_hostLaneIndex == 0) {
+            // In center -> swerve left if clear, otherwise right
+            _hostLaneIndex = (targetPos.dx >= cx) ? -1 : 1;
+          } else if (_hostLaneIndex == -1) {
+            _hostLaneIndex = 0; // Return toward center/right
+          } else {
+            _hostLaneIndex = 0; // Return toward center/left
+          }
+          // Cooldown locks this lane choice for 40 ticks (~0.7s) to guarantee zero jitter
+          _dodgeCooldownTicks = 40;
+        }
+
+        _trainedCarLaneOffset = _hostLaneIndex * 110.0;
+        _isDodging = true;
+        _dodgeDirection = _hostLaneIndex;
         _isEmergencyBraking = false;
         _trainedCarSpeed = 52.0;
-
-        // Try Left Lane (cx - 110) if not already on left curb
-        if (_trainedCarLaneOffset >= 0.0) {
-          _trainedCarLaneOffset = -110.0;
-          _isDodging = true;
-          _dodgeDirection = -1;
-          _aiDecision = 'AI EVASIVE DODGE: SWERVING TO LEFT LANE';
-          _aiDecisionColor = const Color(0xFFEA580C);
-        } else {
-          // If already in Left Lane, Dodge Right
-          _trainedCarLaneOffset = 110.0;
-          _isDodging = true;
-          _dodgeDirection = 1;
-          _aiDecision = 'AI EVASIVE DODGE: SWERVING TO RIGHT LANE';
-          _aiDecisionColor = const Color(0xFFEA580C);
-        }
-      }
-    } else {
-      // Path Clear or Lateral Offset Safe
-      _isEmergencyBraking = false;
-      _isDodging = false;
-      _dodgeDirection = 0;
-      _trainedCarSpeed = 60.0;
-
-      // Gradually return to Center Cruise Lane (Lane 2) when threat is clear
-      if (_interactiveCarType != 'ambulance' && distMeters > 30.0) {
-        _trainedCarLaneOffset = 0.0;
-      }
-
-      if (_liveTrustScore < 40.0) {
-        _aiDecision = 'MALICIOUS NODE FLAGGED: SAFE BUFFER MAINTAINED';
-        _aiDecisionColor = const Color(0xFFDC2626);
+        _aiDecision = _hostLaneIndex < 0
+            ? 'AI EVASIVE DODGE: SWERVING TO LEFT LANE'
+            : 'AI EVASIVE DODGE: SWERVING TO RIGHT LANE';
+        _aiDecisionColor = const Color(0xFFEA580C);
       } else {
-        _aiDecision = 'NORMAL CRUISE: SAFE HEADWAY VERIFIED';
-        _aiDecisionColor = const Color(0xFF059669);
+        // Road is clear
+        if (_dodgeCooldownTicks > 0) {
+          _dodgeCooldownTicks--;
+        } else {
+          _isDodging = false;
+          _isEmergencyBraking = false;
+          _dodgeDirection = 0;
+          _trainedCarSpeed = 60.0;
+
+          // Safely return to center lane when obstacle is behind or far away
+          if (_interactiveCarType != 'ambulance' && (dy > 40.0 || distMeters > 35.0)) {
+            _hostLaneIndex = 0;
+            _trainedCarLaneOffset = 0.0;
+          }
+        }
+
+        if (_liveTrustScore < 40.0) {
+          _aiDecision = 'MALICIOUS NODE FLAGGED: SAFE BUFFER MAINTAINED';
+          _aiDecisionColor = const Color(0xFFDC2626);
+        } else {
+          _aiDecision = 'NORMAL CRUISE: SAFE HEADWAY VERIFIED';
+          _aiDecisionColor = const Color(0xFF059669);
+        }
       }
     }
 
-    // Smooth physical position interpolation (spring damping)
-    _trainedCarCurrentX += (_trainedCarLaneOffset - _trainedCarCurrentX) * 0.14;
+    // Smooth physical position interpolation (spring-damping)
+    if (_currentlyDragging != 'host') {
+      _trainedCarCurrentX += (_trainedCarLaneOffset - _trainedCarCurrentX) * 0.12;
+    }
 
     setState(() {});
   }
 
-  // --- Touch & Drag Handlers ---
+  // --- Smart Touch & Drag Handlers: Move whichever car you touch! ---
   void _onPanStart(DragStartDetails details) {
-    _isDragging = true;
-    _interactiveCarPos = details.localPosition;
+    final size = MediaQuery.of(context).size;
+    final cx = size.width * 0.5;
+    final playerY = size.height * 0.55;
+    final hostPos = Offset(cx + _trainedCarCurrentX, playerY);
+    final targetPos = _interactiveCarPos ?? Offset(cx, size.height * 0.30);
+
+    final dHost = (details.localPosition - hostPos).distance;
+    final dChallenger = (details.localPosition - targetPos).distance;
+
+    // If touch is closer to Host (or within 75px), user is directly touching Host!
+    if (dHost < 75.0 || (dHost < dChallenger && _activeControl == 'host')) {
+      _currentlyDragging = 'host';
+      _activeControl = 'host';
+    } else {
+      _currentlyDragging = 'challenger';
+      _activeControl = 'challenger';
+    }
     setState(() {});
   }
 
   void _onPanUpdate(DragUpdateDetails details) {
-    _interactiveCarPos = details.localPosition;
-    setState(() {});
+    final size = MediaQuery.of(context).size;
+    final cx = size.width * 0.5;
+
+    if (_currentlyDragging == 'host') {
+      // Direct Touch Drag on Host Car!
+      setState(() {
+        _trainedCarCurrentX = (details.localPosition.dx - cx).clamp(-140.0, 140.0);
+        _trainedCarLaneOffset = _trainedCarCurrentX;
+        _hostLaneIndex = (_trainedCarCurrentX / 75.0).round().clamp(-1, 1);
+      });
+    } else {
+      // Direct Touch Drag on Challenger Car!
+      setState(() {
+        _interactiveCarPos = Offset(
+          details.localPosition.dx.clamp(40.0, size.width - 40.0),
+          details.localPosition.dy.clamp(80.0, size.height - 120.0),
+        );
+      });
+    }
   }
 
   void _onPanEnd(DragEndDetails details) {
-    _isDragging = false;
+    _currentlyDragging = null;
     setState(() {});
   }
 
-  // --- D-Pad Steering Triggers ---
+  // --- D-Pad Steering Controls ---
   void _moveCar(double dX, double dY) {
-    if (_interactiveCarPos == null) return;
-    setState(() {
-      _interactiveCarPos = Offset(
-        (_interactiveCarPos!.dx + dX).clamp(40.0, MediaQuery.of(context).size.width - 40.0),
-        (_interactiveCarPos!.dy + dY).clamp(80.0, MediaQuery.of(context).size.height - 120.0),
-      );
-    });
+    final size = MediaQuery.of(context).size;
+    final cx = size.width * 0.5;
+
+    if (_activeControl == 'host') {
+      // Steer Host!
+      setState(() {
+        if (dX != 0) {
+          // Lane Shift Left / Right
+          _hostLaneIndex = (_hostLaneIndex + (dX > 0 ? 1 : -1)).clamp(-1, 1);
+          _trainedCarLaneOffset = _hostLaneIndex * 110.0;
+          _trainedCarCurrentX = _trainedCarLaneOffset;
+        }
+        if (dY < 0) {
+          _trainedCarSpeed = (_trainedCarSpeed + 10.0).clamp(0.0, 120.0);
+        } else if (dY > 0) {
+          _trainedCarSpeed = (_trainedCarSpeed - 15.0).clamp(0.0, 120.0);
+        }
+      });
+    } else {
+      // Steer Challenger!
+      if (_interactiveCarPos == null) return;
+      setState(() {
+        _interactiveCarPos = Offset(
+          (_interactiveCarPos!.dx + dX).clamp(40.0, size.width - 40.0),
+          (_interactiveCarPos!.dy + dY).clamp(80.0, size.height - 120.0),
+        );
+      });
+    }
   }
 
   void _selectVehicleType(String type, String label, double speed) {
@@ -219,16 +290,15 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
     final size = MediaQuery.of(context).size;
     final cx = size.width * 0.5;
 
-    // Relative distance calculation
     final playerPos = Offset(cx + _trainedCarCurrentX, size.height * 0.55);
-    final targetPos = _interactiveCarPos ?? Offset(cx, size.height * 0.32);
+    final targetPos = _interactiveCarPos ?? Offset(cx, size.height * 0.30);
     final distMeters = (math.sqrt(math.pow(targetPos.dx - playerPos.dx, 2) + math.pow(targetPos.dy - playerPos.dy, 2)) / 4.5).clamp(2.0, 150.0);
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // 1. INTERACTIVE TOUCH CANVAS: Drag & Steer test car across highway
+          // 1. INTERACTIVE TOUCH CANVAS: Direct touch on Host OR Challenger!
           GestureDetector(
             behavior: HitTestBehavior.opaque,
             onPanStart: _onPanStart,
@@ -247,20 +317,21 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
                 testCarType: _interactiveCarType,
                 testCarLabel: _interactiveCarLabel,
                 testCarTrust: _liveTrustScore,
-                isDragging: _isDragging,
+                activeControl: _activeControl,
+                currentlyDragging: _currentlyDragging,
                 baseTrust: driverState.trustScore,
               ),
             ),
           ),
 
-          // 2. TOP AI STATUS & INTERACTIVE ACTION HEADER
+          // 2. TOP AI STATUS & ACTIVE CAR CONTROL SELECTOR
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Main AI Header Card
+                  // Header Decision Card
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
@@ -269,7 +340,7 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
                       border: Border.all(color: const Color(0xFFE2E8F0)),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.06),
+                          color: Colors.black.withOpacity(0.06),
                           blurRadius: 14,
                           offset: const Offset(0, 4),
                         ),
@@ -280,7 +351,7 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: _aiDecisionColor.withValues(alpha: 0.12),
+                            color: _aiDecisionColor.withOpacity(0.12),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -302,7 +373,7 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: _aiDecisionColor.withValues(alpha: 0.15),
+                                      color: _aiDecisionColor.withOpacity(0.15),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Text(
@@ -348,7 +419,7 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
                             ],
                           ),
                         ),
-                        // Spawn / Change Vehicle Button
+                        // Vehicle Spawner Modal
                         ElevatedButton.icon(
                           onPressed: _showVehiclePickerModal,
                           icon: const Icon(Icons.add_road_rounded, size: 15),
@@ -367,22 +438,88 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
 
                   const SizedBox(height: 8),
 
-                  // Real Mathematical Trust & Anomaly Inspector Bar
+                  // ACTIVE CAR CONTROL SWITCHER & AUTOPILOT TOGGLE
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        _formulaPill('BETA TRUST', 'T = ${_alpha.toInt()} / (${_alpha.toInt()} + ${_beta.toInt()}) = ${_liveTrustScore.toStringAsFixed(0)}%', _liveTrustScore >= 75 ? const Color(0xFF059669) : const Color(0xFFDC2626)),
-                        Container(height: 20, width: 1, color: const Color(0xFFE2E8F0)),
-                        _formulaPill('AI CLASSIFIER', _liveTrustScore >= 75 ? 'TRUSTED (CAM Valid)' : (_liveTrustScore >= 40 ? 'SUSPICIOUS (Outlier)' : 'ROGUE (Blacklisted)'), _liveTrustScore >= 75 ? const Color(0xFF059669) : const Color(0xFFDC2626)),
-                        Container(height: 20, width: 1, color: const Color(0xFFE2E8F0)),
-                        _formulaPill('TOUCH CONTROL', _isDragging ? 'DRAGGING ACTIVE' : 'TOUCH TO DRAG', const Color(0xFF0284C7)),
+                        Text(
+                          'TOUCH TO CONTROL:',
+                          style: GoogleFonts.outfit(fontSize: 9.5, fontWeight: FontWeight.bold, color: const Color(0xFF64748B)),
+                        ),
+                        const SizedBox(width: 8),
+                        // Host Toggle Pill
+                        InkWell(
+                          onTap: () => setState(() => _activeControl = 'host'),
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _activeControl == 'host' ? const Color(0xFF7C3AED) : Colors.white,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: _activeControl == 'host' ? const Color(0xFF7C3AED) : const Color(0xFFCBD5E1)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.touch_app_rounded, size: 12, color: _activeControl == 'host' ? Colors.white : const Color(0xFF7C3AED)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Host (Purple)',
+                                  style: GoogleFonts.outfit(fontSize: 10.5, fontWeight: FontWeight.bold, color: _activeControl == 'host' ? Colors.white : const Color(0xFF0F172A)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        // Challenger Toggle Pill
+                        InkWell(
+                          onTap: () => setState(() => _activeControl = 'challenger'),
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _activeControl == 'challenger' ? const Color(0xFFDC2626) : Colors.white,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: _activeControl == 'challenger' ? const Color(0xFFDC2626) : const Color(0xFFCBD5E1)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.touch_app_rounded, size: 12, color: _activeControl == 'challenger' ? Colors.white : const Color(0xFFDC2626)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Challenger (Red)',
+                                  style: GoogleFonts.outfit(fontSize: 10.5, fontWeight: FontWeight.bold, color: _activeControl == 'challenger' ? Colors.white : const Color(0xFF0F172A)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
+                        // Autopilot Toggle
+                        InkWell(
+                          onTap: () => setState(() => _aiAutopilot = !_aiAutopilot),
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _aiAutopilot ? const Color(0xFF059669).withOpacity(0.12) : const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: _aiAutopilot ? const Color(0xFF059669) : const Color(0xFFCBD5E1)),
+                            ),
+                            child: Text(
+                              _aiAutopilot ? 'AI Autopilot: ON' : 'AI Autopilot: OFF',
+                              style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.bold, color: _aiAutopilot ? const Color(0xFF059669) : const Color(0xFF64748B)),
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -392,50 +529,49 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
           ),
 
           // 3. FLOATING ON-SCREEN STEERING CONTROLS (D-PAD)
-          if (_showDpad)
-            Positioned(
-              right: 14,
-              bottom: 84,
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.94),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.10),
-                      blurRadius: 14,
-                      offset: const Offset(0, 4),
+          Positioned(
+            right: 14,
+            bottom: 84,
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.95),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.10),
+                    blurRadius: 14,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _activeControl == 'host' ? 'STEER HOST' : 'STEER CHALLENGER',
+                    style: GoogleFonts.outfit(
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      color: _activeControl == 'host' ? const Color(0xFF7C3AED) : const Color(0xFFDC2626),
                     ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'STEER / DODGE TEST',
-                      style: GoogleFonts.outfit(fontSize: 9, fontWeight: FontWeight.bold, color: const Color(0xFF64748B)),
-                    ),
-                    const SizedBox(height: 4),
-                    // Forward
-                    _dpadBtn(Icons.arrow_upward_rounded, () => _moveCar(0, -35), 'Forward'),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Left Cut
-                        _dpadBtn(Icons.arrow_back_rounded, () => _moveCar(-45, 0), 'Cut Left'),
-                        const SizedBox(width: 8),
-                        // Right Cut
-                        _dpadBtn(Icons.arrow_forward_rounded, () => _moveCar(45, 0), 'Cut Right'),
-                      ],
-                    ),
-                    // Reverse / Cut in front
-                    _dpadBtn(Icons.arrow_downward_rounded, () => _moveCar(0, 35), 'Cut Behind'),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 4),
+                  _dpadBtn(Icons.arrow_upward_rounded, () => _moveCar(0, -35), 'Forward / Accel'),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _dpadBtn(Icons.arrow_back_rounded, () => _moveCar(-45, 0), 'Shift Left'),
+                      const SizedBox(width: 8),
+                      _dpadBtn(Icons.arrow_forward_rounded, () => _moveCar(45, 0), 'Shift Right'),
+                    ],
+                  ),
+                  _dpadBtn(Icons.arrow_downward_rounded, () => _moveCar(0, 35), 'Brake / Reverse'),
+                ],
               ),
             ),
+          ),
 
           // 4. BOTTOM VANET HIGHWAY METRICS HUD
           Positioned(
@@ -450,7 +586,7 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
                 border: Border.all(color: const Color(0xFFE2E8F0)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
+                    color: Colors.black.withOpacity(0.08),
                     blurRadius: 16,
                     offset: const Offset(0, 4),
                   ),
@@ -459,7 +595,7 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _statTile('TARGET NODE', _interactiveCarLabel.split(' ').first, const Color(0xFF0F172A), Icons.directions_car_rounded),
+                  _statTile('ACTIVE DRIVER', _activeControl == 'host' ? 'Host (Purple)' : 'Challenger', const Color(0xFF0F172A), Icons.touch_app_rounded),
                   Container(height: 28, width: 1, color: const Color(0xFFE2E8F0)),
                   _statTile('DISTANCE', '${distMeters.toStringAsFixed(1)} m', distMeters < 12 ? const Color(0xFFDC2626) : const Color(0xFF0284C7), Icons.straighten_rounded),
                   Container(height: 28, width: 1, color: const Color(0xFFE2E8F0)),
@@ -472,18 +608,6 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
           ),
         ],
       ),
-    );
-  }
-
-  Widget _formulaPill(String title, String val, Color color) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(title, style: GoogleFonts.outfit(fontSize: 9, fontWeight: FontWeight.bold, color: const Color(0xFF94A3B8))),
-        const SizedBox(height: 1),
-        Text(val, style: GoogleFonts.outfit(fontSize: 10.5, fontWeight: FontWeight.bold, color: color)),
-      ],
     );
   }
 
@@ -537,11 +661,11 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Select Test Vehicle to Challenge Trained Car',
+                  'Select Test Vehicle to Challenge Host',
                   style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A)),
                 ),
                 Text(
-                  'Drag the selected car on screen towards V-101 to see how its AI model evaluates trust and triggers evasive actions.',
+                  'Choose a vehicle to spawn and test Host\'s autonomous dodge reaction.',
                   style: GoogleFonts.outfit(fontSize: 12, color: const Color(0xFF64748B)),
                 ),
                 const SizedBox(height: 16),
@@ -605,7 +729,7 @@ class _DriverMapScreenState extends ConsumerState<DriverMapScreen>
       contentPadding: EdgeInsets.zero,
       leading: CircleAvatar(
         radius: 18,
-        backgroundColor: color.withValues(alpha: 0.12),
+        backgroundColor: color.withOpacity(0.12),
         child: Icon(icon, color: color, size: 18),
       ),
       title: Text(title, style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 13)),
@@ -630,7 +754,8 @@ class _VanetInteractivePainter extends CustomPainter {
   final String testCarType;
   final String testCarLabel;
   final double testCarTrust;
-  final bool isDragging;
+  final String activeControl;
+  final String? currentlyDragging;
   final double baseTrust;
 
   _VanetInteractivePainter({
@@ -644,7 +769,8 @@ class _VanetInteractivePainter extends CustomPainter {
     required this.testCarType,
     required this.testCarLabel,
     required this.testCarTrust,
-    required this.isDragging,
+    required this.activeControl,
+    required this.currentlyDragging,
     required this.baseTrust,
   });
 
@@ -656,14 +782,11 @@ class _VanetInteractivePainter extends CustomPainter {
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), Paint()..color = const Color(0xFFF0FDF4));
 
     // 2. 3-Lane Smart Highway (340px wide)
-    // Lane 1 (Express / Incident): cx - 110
-    // Lane 2 (Main Cruise): cx
-    // Lane 3 (Detour / Yield): cx + 110
     const double roadWidth = 340.0;
     final roadRect = Rect.fromCenter(center: Offset(cx, size.height * 0.5), width: roadWidth, height: size.height);
     canvas.drawRect(roadRect, Paint()..color = const Color(0xFF334155));
 
-    // Highway Curbs
+    // Curbs
     final curbPaint = Paint()..color = const Color(0xFFCBD5E1)..strokeWidth = 4.0;
     canvas.drawLine(Offset(cx - roadWidth * 0.5, 0), Offset(cx - roadWidth * 0.5, size.height), curbPaint);
     canvas.drawLine(Offset(cx + roadWidth * 0.5, 0), Offset(cx + roadWidth * 0.5, size.height), curbPaint);
@@ -679,7 +802,7 @@ class _VanetInteractivePainter extends CustomPainter {
     // 5. Positions
     final playerPos = Offset(cx + trainedCarX, size.height * 0.55);
 
-    // 6. Draw 360-Degree AI Perception Scanner Cone & Radar Ring from Trained Car
+    // 6. Draw 360-Degree AI Perception Scanner from Host
     _drawAiPerceptionScanner(canvas, playerPos, testCarPos, cycle);
 
     // 7. Distance & Target Vector Line
@@ -689,21 +812,24 @@ class _VanetInteractivePainter extends CustomPainter {
     _drawHostCar(
       canvas: canvas,
       pos: playerPos,
-      bodyColor: const Color(0xFF7C3AED), // Royal Purple-Blue
-      roofColor: const Color(0xFF4F46E5), // Deep Indigo
+      bodyColor: const Color(0xFF7C3AED),
+      roofColor: const Color(0xFF4F46E5),
       label: 'Host',
       isBraking: isBraking,
       isDodging: isDodging,
       dodgeDirection: dodgeDirection,
+      isSelected: activeControl == 'host',
+      isBeingDragged: currentlyDragging == 'host',
     );
 
-    // 9. Draw Interactive Test Vehicle (User-Controlled)
+    // 9. Draw Challenger Test Vehicle
     if (testCarType == 'ambulance') {
       _drawAmbulance(
         canvas: canvas,
         pos: testCarPos,
         label: testCarLabel,
-        isDragging: isDragging,
+        isSelected: activeControl == 'challenger',
+        isBeingDragged: currentlyDragging == 'challenger',
       );
     } else {
       _drawTestCar(
@@ -711,7 +837,8 @@ class _VanetInteractivePainter extends CustomPainter {
         pos: testCarPos,
         label: testCarLabel,
         trustScore: testCarTrust,
-        isDragging: isDragging,
+        isSelected: activeControl == 'challenger',
+        isBeingDragged: currentlyDragging == 'challenger',
         type: testCarType,
       );
     }
@@ -720,16 +847,15 @@ class _VanetInteractivePainter extends CustomPainter {
   // --- Dynamic AI Perception Scanner ---
   void _drawAiPerceptionScanner(Canvas canvas, Offset host, Offset target, double anim) {
     final radarPaint = Paint()
-      ..color = const Color(0xFF7C3AED).withValues(alpha: 0.08)
+      ..color = const Color(0xFF7C3AED).withOpacity(0.08)
       ..style = PaintingStyle.fill;
 
-    // 360 Awareness Field (160px radius)
     canvas.drawCircle(host, 160.0, radarPaint);
 
-    // Pulsing Perception Wave
     final pulseRadius = 60.0 + (anim * 100.0);
     final wavePaint = Paint()
-      ..color = (testCarTrust < 40 ? const Color(0xFFDC2626) : const Color(0xFF7C3AED)).withValues(alpha: (1.0 - anim) * 0.45)
+      ..color = (testCarTrust < 40 ? const Color(0xFFDC2626) : const Color(0xFF7C3AED))
+          .withOpacity(((1.0 - anim) * 0.45).clamp(0.0, 1.0))
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.0;
     canvas.drawCircle(host, pulseRadius, wavePaint);
@@ -739,13 +865,12 @@ class _VanetInteractivePainter extends CustomPainter {
   void _drawTargetVectorLine(Canvas canvas, Offset host, Offset target, double trust) {
     final color = trust >= 75 ? const Color(0xFF059669) : (trust >= 40 ? const Color(0xFFEA580C) : const Color(0xFFDC2626));
     final linePaint = Paint()
-      ..color = color.withValues(alpha: 0.6)
+      ..color = color.withOpacity(0.6)
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
 
     canvas.drawLine(host, target, linePaint);
 
-    // Midpoint distance label
     final mid = Offset((host.dx + target.dx) * 0.5, (host.dy + target.dy) * 0.5);
     final distMeters = (math.sqrt(math.pow(target.dx - host.dx, 2) + math.pow(target.dy - host.dy, 2)) / 4.5).clamp(2.0, 150.0);
 
@@ -762,7 +887,7 @@ class _VanetInteractivePainter extends CustomPainter {
     tp.paint(canvas, mid.translate(-tp.width * 0.5, -tp.height * 0.5));
   }
 
-  // --- Trained Solo Host Car Painter ---
+  // --- Host Car Painter ---
   void _drawHostCar({
     required Canvas canvas,
     required Offset pos,
@@ -772,9 +897,23 @@ class _VanetInteractivePainter extends CustomPainter {
     required bool isBraking,
     required bool isDodging,
     required int dodgeDirection,
+    required bool isSelected,
+    required bool isBeingDragged,
   }) {
     const double w = 44.0;
     const double h = 70.0;
+
+    // Selection / Touch Halo Ring
+    if (isSelected || isBeingDragged) {
+      canvas.drawCircle(
+        pos,
+        48.0,
+        Paint()
+          ..color = const Color(0xFF7C3AED).withOpacity(0.35)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.5,
+      );
+    }
 
     // Drop Shadow
     canvas.drawOval(
@@ -810,7 +949,7 @@ class _VanetInteractivePainter extends CustomPainter {
     canvas.drawCircle(Offset(pos.dx - 13, pos.dy - (h * 0.42)), 3.5, Paint()..color = const Color(0xFFFEF08A));
     canvas.drawCircle(Offset(pos.dx + 13, pos.dy - (h * 0.42)), 3.5, Paint()..color = const Color(0xFFFEF08A));
 
-    // Emergency Brake Lights (Glowing Red during collision avoidance)
+    // Emergency Brake Lights
     if (isBraking) {
       final brakePaint = Paint()
         ..color = const Color(0xFFFF0000)
@@ -835,13 +974,14 @@ class _VanetInteractivePainter extends CustomPainter {
     _drawBadge(canvas, pos.translate(0, -h * 0.68), label, bodyColor);
   }
 
-  // --- Interactive Test Vehicle Painter ---
+  // --- Challenger Test Vehicle Painter ---
   void _drawTestCar({
     required Canvas canvas,
     required Offset pos,
     required String label,
     required double trustScore,
-    required bool isDragging,
+    required bool isSelected,
+    required bool isBeingDragged,
     required String type,
   }) {
     const double w = 42.0;
@@ -851,15 +991,15 @@ class _VanetInteractivePainter extends CustomPainter {
         ? const Color(0xFF059669)
         : (trustScore >= 40 ? const Color(0xFFD97706) : const Color(0xFFDC2626));
 
-    // Dragging Glow Ring
-    if (isDragging) {
+    // Selection / Dragging Halo Ring
+    if (isSelected || isBeingDragged) {
       canvas.drawCircle(
         pos,
         48.0,
         Paint()
-          ..color = color.withValues(alpha: 0.25)
+          ..color = color.withOpacity(0.35)
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 3.0,
+          ..strokeWidth = 2.5,
       );
     }
 
@@ -887,16 +1027,6 @@ class _VanetInteractivePainter extends CustomPainter {
     canvas.drawCircle(Offset(pos.dx - 13, pos.dy - (h * 0.42)), 3.5, Paint()..color = const Color(0xFFFEF08A));
     canvas.drawCircle(Offset(pos.dx + 13, pos.dy - (h * 0.42)), 3.5, Paint()..color = const Color(0xFFFEF08A));
 
-    // Touch Drag Target Crosshair Indicator
-    canvas.drawCircle(
-      pos,
-      12.0,
-      Paint()
-        ..color = Colors.white70
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5,
-    );
-
     // Floating Badge
     _drawBadge(canvas, pos.translate(0, -h * 0.68), '$label (${trustScore.toStringAsFixed(0)}%)', color);
   }
@@ -906,7 +1036,8 @@ class _VanetInteractivePainter extends CustomPainter {
     required Canvas canvas,
     required Offset pos,
     required String label,
-    required bool isDragging,
+    required bool isSelected,
+    required bool isBeingDragged,
   }) {
     const double w = 48.0;
     const double h = 82.0;
@@ -930,7 +1061,7 @@ class _VanetInteractivePainter extends CustomPainter {
     canvas.drawRect(Rect.fromCenter(center: pos, width: 7, height: 24), crossPaint);
     canvas.drawRect(Rect.fromCenter(center: pos, width: 24, height: 7), crossPaint);
 
-    // Flashing Siren
+    // Siren
     canvas.drawCircle(
       Offset(pos.dx, pos.dy - 16),
       8.0,
@@ -957,7 +1088,7 @@ class _VanetInteractivePainter extends CustomPainter {
     canvas.drawRRect(
       RRect.fromRectAndRadius(pillRect, const Radius.circular(6)),
       Paint()
-        ..color = color.withValues(alpha: 0.5)
+        ..color = color.withOpacity(0.5)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.2,
     );
