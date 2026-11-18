@@ -1,7 +1,7 @@
 @echo off
 title VANET System Launcher
 echo ========================================================
-echo   Launching VANET Misbehavior Detection & Trust System
+echo   Launching VANET Misbehavior Detection and Trust System
 echo ========================================================
 echo.
 
