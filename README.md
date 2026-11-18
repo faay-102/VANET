@@ -43,6 +43,9 @@ fyp/
 │
 ├── README.md                           # Main Project Master Documentation (This File)
 │
+├── colab/                              # Google Colab ML Training & Evaluation Notebook
+│   └── VANET_Misbehavior_Detection_Colab.ipynb # 6-Model Benchmark, Train/Test Split, ROC & SHAP
+│
 ├── frontend/                           # Flutter 3.41.7 Cross-Platform App & Dashboard
 │   ├── lib/
 │   │   ├── core/                       # Navigation, theme configurations, API network client
@@ -62,12 +65,9 @@ fyp/
 │   │   ├── interactors/                # Endpoint-specific business workflows
 │   │   ├── routes/                     # HTTP and WebSocket controllers
 │   │   └── services/                   # Business domain services (ML, XAI, Trust, Routing, Dataset)
-│   ├── models/                         # Trained ML model weights
-│   │   └── best_model.joblib           # Pre-trained classifier binary
-│   ├── scripts/                        # Standalone runnable ML & simulation scripts
-│   │   ├── preprocess.py               # VeReMi dataset ingestion & feature extraction
-│   │   ├── simulate_ml.py              # ML model evaluation & benchmark runner
-│   │   ├── explain.py                  # Local & global SHAP/LIME explanation generator
+│   ├── models/                         # Trained ML model weights (Imported from Colab)
+│   │   └── best_model.joblib           # Pre-trained XGBoost classifier binary (96.2% Accuracy)
+│   ├── scripts/                        # Standalone runnable simulation scripts
 │   │   ├── simulate_trust.py           # 5-Epoch vehicle trust evolution simulation
 │   │   ├── simulate_emergency.py       # Priority validation & siren control tester
 │   │   ├── simulate_routing.py         # A* emergency detour search runner
@@ -95,9 +95,9 @@ fyp/
 │   ├── alembic/                        # Versioned DB migration schema scripts
 │   └── alembic.ini                     # Migration engine configuration file
 │
-└── dataset/                            # Unified Dataset Directory
+└── dataset/                            # Dataset Directory
     ├── raw/                            # Raw JSON telemetry trace files
-    └── processed/                      # Cleaned train/val/test CSVs, scaler.pkl, & feature metadata
+    └── processed/                      # Model metadata, scaler.pkl & label mappings
 ```
 
 ---
@@ -239,18 +239,22 @@ Using the processed VeReMi dataset, our anomaly classifiers achieve the followin
 
 ---
 
-### Running ML, XAI & Simulation Pipelines (Offline / Local)
-All simulations and machine learning pipelines execute 100% locally on your computer without requiring Google Colab:
+### Machine Learning Training & Model Evaluation (Google Colab)
+All machine learning model training, comparative benchmarking (XGBoost, CatBoost, LightGBM, Random Forest, LSTM, GRU), evaluation metrics (Accuracy %, F1 %, ROC/PR curves), and Explainable AI (SHAP) are conducted interactively in **Google Colab**:
+* **Interactive Notebook:** [`VANET_Misbehavior_Detection_Colab.ipynb`](VANET_Misbehavior_Detection_Colab.ipynb)
+* **Outputs Generated:** `best_model.joblib` (exported directly to `backend/models/` for FastAPI serving)
+
+---
+
+### Backend Services & Simulation Pipelines
+The FastAPI backend serves the trained model (`backend/models/best_model.joblib`) for sub-millisecond real-time vehicle telemetry scoring:
 
 | Task | Command (Run inside `backend/`) | Outputs Generated |
 | :--- | :--- | :--- |
-| **1. Ingest & Preprocess Dataset** | `python scripts/preprocess.py` | `dataset/processed/train.csv`, `validation.csv`, `test.csv`, `scaler.pkl` |
-| **2. Benchmark ML Classifiers** | `python scripts/simulate_ml.py` | `backend/reports/ml/roc_curves.png`, `pr_curves.png`, `feature_importance.png` |
-| **3. Generate SHAP & LIME XAI** | `python scripts/explain.py` | `backend/models/best_model.joblib`, `backend/reports/xai/`, JSON explanation logs |
-| **4. Simulate Dynamic Trust** | `python scripts/simulate_trust.py` | `backend/trust_history/`, `backend/reports/trust/fleet_rankings.png` |
-| **5. Test Emergency Priority** | `python scripts/simulate_emergency.py` | `backend/reports/emergency/priority_distribution.png` |
-| **6. Run A* Detour Routing** | `python scripts/simulate_routing.py` | `backend/reports/routes/accident_detour_comparison.png` |
-| **7. Real-Time FCM Alerts** | `python scripts/simulate_notifications.py` | Push notification payloads & simulation logs |
+| **1. Simulate Dynamic Trust** | `python scripts/simulate_trust.py` | `backend/trust_history/`, `backend/reports/trust/fleet_rankings.png` |
+| **2. Test Emergency Priority** | `python scripts/simulate_emergency.py` | `backend/reports/emergency/priority_distribution.png` |
+| **3. Run A* Detour Routing** | `python scripts/simulate_routing.py` | `backend/reports/routes/accident_detour_comparison.png` |
+| **4. Real-Time FCM Alerts** | `python scripts/simulate_notifications.py` | Push notification payloads & simulation logs |
 
 ---
 
