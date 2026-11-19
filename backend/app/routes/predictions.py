@@ -1,92 +1,129 @@
 import os
 import joblib
+import numpy as np
 import pandas as pd
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
-from typing import Dict, Any
-from app.services.xai.config import MODEL_PATH
+from typing import Dict, Any, Optional
+from app.services.xai.config import MODEL_PATH, BACKEND_DIR
 
 router = APIRouter()
+
+SCALER_PATH = BACKEND_DIR / "models" / "scaler.pkl"
+
+# Exact 21 Kinematic Features from authentic VeReMi Attack 16 pipeline
+FEATURE_COLUMNS = [
+    "pos_x1", "pos_y1", "spd_x1", "spd_y1",
+    "pos_x2", "pos_y2", "spd_x2", "spd_y2",
+    "speed_mag1", "speed_mag2",
+    "delta_t",
+    "delta_pos_x", "delta_pos_y", "delta_pos_magnitude",
+    "delta_spd_x", "delta_spd_y", "delta_spd_magnitude",
+    "acceleration_magnitude",
+    "heading_angle1", "heading_angle2",
+    "pos_residual"
+]
 
 class PredictionRequestSchema(BaseModel):
     features: Dict[str, float] = Field(
         ...,
-        description="Dictionary of features: speed, acceleration, speed_anomaly_score, position_anomaly_score, GPS_consistency, message_frequency_anomaly, communication_behavior_score"
+        description="Dictionary of 21 kinematic features extracted from consecutive BSM messages"
     )
 
 class PredictionResponseSchema(BaseModel):
-    prediction: str # Normal/Malicious
+    prediction: str # Normal Vehicle / Malicious Vehicle
     attack_type: str
     confidence: float
     model_used: str
 
-# Global variable to cache model binary
+# Model and scaler cache
 model_cache = None
+scaler_cache = None
 
-def get_model():
-    global model_cache
+def get_artifacts():
+    global model_cache, scaler_cache
     if model_cache is None:
-        if os.path.exists(MODEL_PATH):
-            try:
-                model_cache = joblib.load(MODEL_PATH)
-            except Exception as e:
-                print(f"Failed loading model from {MODEL_PATH}: {str(e)}")
-        
-        # Fallback to loading standard model or train a dummy XGBClassifier if model is still missing
-        if model_cache is None:
-            from xgboost import XGBClassifier
-            import numpy as np
-            # Train simple mock classifier to prevent failures
-            X = np.random.rand(10, 6)
-            y = np.array([0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
-            model_cache = XGBClassifier(n_estimators=3)
-            model_cache.fit(X, y)
-            
-    return model_cache
+        if not os.path.exists(MODEL_PATH):
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Trained model not found at '{MODEL_PATH}'. Please export 'best_model.joblib' from Colab."
+            )
+        try:
+            model_cache = joblib.load(MODEL_PATH)
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed loading model binary: {str(e)}"
+            )
+
+    if scaler_cache is None and os.path.exists(SCALER_PATH):
+        try:
+            scaler_cache = joblib.load(SCALER_PATH)
+        except Exception as e:
+            print(f"[WARN] Failed loading scaler from '{SCALER_PATH}': {str(e)}")
+
+    return model_cache, scaler_cache
 
 @router.post("/analyze", response_model=PredictionResponseSchema)
 def analyze_misbehavior(payload: PredictionRequestSchema):
-    model = get_model()
+    model, scaler = get_artifacts()
     
-    # Feature columns expected by model
-    expected_cols = [
-        'vehicle_id', 'timestamp', 'position_x', 'position_y', 'speed', 'acceleration', 
-        'direction', 'heading', 'lane_position', 'message_frequency', 'message_interval', 
-        'neighbor_count', 'communication_rate', 'packet_count', 'speed_change_rate', 
-        'position_change_rate', 'distance_difference', 'trajectory_consistency', 
-        'message_consistency', 'GPS_consistency', 'speed_anomaly_score', 
-        'position_anomaly_score', 'message_frequency_anomaly', 'acceleration_anomaly', 
-        'trajectory_deviation', 'communication_behavior_score'
-    ]
-    
-    # Extract values and build DataFrame
-    feats = payload.features
-    row = {}
-    for col in expected_cols:
-        if col == "vehicle_id":
-            row[col] = 0.0
-        else:
-            row[col] = float(feats.get(col, 0.0))
-            
-    df = pd.DataFrame([row])
-    
-    try:
-        pred_val = int(model.predict(df)[0])
-        proba = float(model.predict_proba(df)[0][pred_val])
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Prediction inference failed: {str(e)}")
+    # Determine expected columns (from model metadata or standard 21 features)
+    if hasattr(model, "feature_names_in_"):
+        expected_cols = list(model.feature_names_in_)
+    else:
+        expected_cols = FEATURE_COLUMNS
 
-    # Resolve attack type based on dominant anomaly feature if predicted malicious
+    # Strict check: Ensure scaler is loaded (model was trained on scaled data)
+    if scaler is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Scaler artifact not found at '{SCALER_PATH}'. Both 'best_model.joblib' and 'scaler.pkl' are required."
+        )
+
+    # Validate that all required features are present in payload
+    feats = payload.features
+    missing_feats = [col for col in expected_cols if col not in feats]
+    if missing_feats:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Missing required feature(s): {missing_feats}. Exactly {len(expected_cols)} features expected."
+        )
+    
+    # Extract feature values in exact required column order
+    row = {col: float(feats[col]) for col in expected_cols}
+    df = pd.DataFrame([row], columns=expected_cols)
+    
+    # Apply StandardScaler transform
+    try:
+        X_input = scaler.transform(df)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Scaler transformation failed: {str(e)}"
+        )
+        
+    try:
+        pred_val = int(model.predict(X_input)[0])
+        proba = float(model.predict_proba(X_input)[0][pred_val])
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Prediction inference failed: {str(e)}"
+        )
+
+    # Resolve attack type based on kinematic features
     attack_type = "NONE"
     if pred_val == 1:
-        if feats.get("position_anomaly_score", 0.0) > 2.0:
-            attack_type = "position_anomaly"
-        elif feats.get("speed_anomaly_score", 0.0) > 2.0:
-            attack_type = "speed_anomaly"
-        elif feats.get("message_frequency_anomaly", 0.0) > 2.0:
-            attack_type = "message_frequency_anomaly"
+        pos_res = feats.get("pos_residual", 0.0)
+        accel_mag = feats.get("acceleration_magnitude", 0.0)
+        
+        if pos_res > 2.0:
+            attack_type = "EventualStop (Position Falsification)"
+        elif accel_mag > 20.0:
+            attack_type = "Kinematic Anomaly (Abnormal Acceleration)"
         else:
-            attack_type = "DoS"
+            attack_type = "VeReMi Attack 16"
 
     return PredictionResponseSchema(
         prediction="Malicious Vehicle" if pred_val == 1 else "Normal Vehicle",

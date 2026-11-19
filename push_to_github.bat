@@ -2,36 +2,29 @@
 cd /d "%~dp0"
 
 echo =========================================================
-echo   [1/4] Syncing with GitHub and purging large APK from history...
+echo   [1/3] Staging updated Colab notebook, backend and guides...
 echo =========================================================
-git remote set-url origin https://github.com/faay-102/VANET.git
-git fetch origin main 2>nul
-git reset origin/main 2>nul
-
-echo.
-echo =========================================================
-echo   [2/4] Ensuring large APK is untracked...
-echo =========================================================
-git rm --cached -f "VANET_Security_App.apk" 2>nul
-git rm --cached -r -f "*.apk" 2>nul
-
-echo.
-echo =========================================================
-echo   [3/4] Staging clean source code files...
-echo =========================================================
+git add colab/VANET_Misbehavior_Detection_Colab.ipynb
+git add VANET_Misbehavior_Detection_Colab.ipynb
+git add backend/app/routes/predictions.py
+git add backend/scripts/simulate_ml.py
 git add -A
 
 echo.
 echo =========================================================
-echo   [4/4] Pushing lightweight source code to GitHub...
+echo   [2/3] Committing changes...
 echo =========================================================
-git commit -m "fix(responsive): eliminate RenderFlex overflows across all screens and clean workspace"
-git branch -M main
-git push -u origin main --force
+git commit -m "feat(ml): update pipeline to 21 authentic VeReMi kinematic features and enforce strict scaler validation in backend"
 
 echo.
 echo =========================================================
-echo   SUCCESS! Pushed to GitHub without large APK files:
+echo   [3/3] Pushing to GitHub remote (origin/main)...
+echo =========================================================
+git push origin main
+
+echo.
+echo =========================================================
+echo   SUCCESS! Pushed latest changes to GitHub:
 echo   https://github.com/faay-102/VANET
 echo =========================================================
 pause
