@@ -66,7 +66,8 @@ fyp/
 │   │   ├── routes/                     # HTTP and WebSocket controllers
 │   │   └── services/                   # Business domain services (ML, XAI, Trust, Routing, Dataset)
 │   ├── models/                         # Trained ML model weights (Imported from Colab)
-│   │   └── best_model.joblib           # Pre-trained XGBoost classifier binary (96.2% Accuracy)
+│   │   ├── best_model.joblib           # Pre-trained XGBoost classifier binary (97.2% Accuracy, 0.997 ROC-AUC)
+│   │   └── scaler.pkl                  # Fitted StandardScaler artifact (21 kinematic features)
 │   ├── scripts/                        # Standalone runnable simulation scripts
 │   │   ├── simulate_trust.py           # 5-Epoch vehicle trust evolution simulation
 │   │   ├── simulate_emergency.py       # Priority validation & siren control tester
@@ -198,16 +199,21 @@ sequenceDiagram
 ## 6. Evaluation & Comparative Benchmarks
 
 ### Machine Learning Classification Results
-Using the processed VeReMi dataset, our anomaly classifiers achieve the following benchmarks:
+Evaluated on authentic public VeReMi Attack 16 (*EventualStop / Position Falsification*) traces (4,000 sampled message pairs, 80/20 stratified split, 21 physical kinematic features):
 
-| Model | Accuracy | Precision | Recall | F1 Score | ROC-AUC | Training Time (s) | Inference Time (ms) |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **XGBoost** | **0.962** | **0.959** | **0.948** | **0.953** | **0.989** | **8.2** | **0.8** |
-| **CatBoost** | 0.960 | 0.957 | 0.946 | 0.951 | 0.987 | 15.6 | 1.2 |
-| **LightGBM** | 0.958 | 0.954 | 0.944 | 0.949 | 0.985 | 4.5 | 0.5 |
-| **LSTM** | 0.942 | 0.935 | 0.920 | 0.927 | 0.978 | 125.0 | 12.0 |
-| **GRU** | 0.938 | 0.930 | 0.916 | 0.923 | 0.974 | 110.0 | 10.5 |
-| **Random Forest** | 0.935 | 0.928 | 0.915 | 0.921 | 0.972 | 12.4 | 2.5 |
+| Model | Accuracy | Precision | Recall | F1 Score | ROC-AUC | Notes |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **LightGBM** | **97.8%** | 98.1% | **93.5%** | **95.8%** | **0.997** | Fast histogram tree growth; top recall |
+| **CatBoost** | **97.8%** | 99.0% | 92.6% | 95.7% | **0.997** | Symmetric oblivious decision trees |
+| **XGBoost** *(Deployed)* | **97.2%** | 97.6% | 92.2% | 94.8% | **0.997** | **Selected for FastAPI serving & SHAP explainability** |
+| **Random Forest** | 96.0% | **100.0%** | 85.3% | 92.0% | 0.996 | Bagging baseline; zero false positives |
+| **GRU** | 91.5% | **100.0%** | 68.7% | 81.4% | 0.978 | Recurrent benchmark ($T=1$ per-packet tensor) |
+| **LSTM** | 91.0% | **100.0%** | 66.8% | 80.1% | 0.975 | Recurrent benchmark ($T=1$ per-packet tensor) |
+
+> **Key Observations:**
+> 1. All three boosting models (LightGBM, CatBoost, XGBoost) demonstrate comparable performance within a 0.6% margin (~5 test samples).
+> 2. XGBoost confusion matrix (583 Normal, 217 Malicious): ~578 true normal (0.9% false alarms), ~200 detected attacks, ~17 missed attacks.
+> 3. SHAP Feature Importance: Actual displacement (`delta_pos_magnitude`, mean abs SHAP = 5.83) dominates decision trees, followed by `speed_mag2` (0.89) and dead-reckoning residual `pos_residual` (0.87), capturing the *EventualStop* attack signature where claimed speed contradicts zero position displacement.
 
 ### Path Routing Execution Latencies
 *   **A* Search Solver**: `192,500 ns` (3.3x faster due to spatial Euclidean heuristics).
@@ -242,7 +248,7 @@ Using the processed VeReMi dataset, our anomaly classifiers achieve the followin
 ### Machine Learning Training & Model Evaluation (Google Colab)
 All machine learning model training, comparative benchmarking (XGBoost, CatBoost, LightGBM, Random Forest, LSTM, GRU), evaluation metrics (Accuracy %, F1 %, ROC/PR curves), and Explainable AI (SHAP) are conducted interactively in **Google Colab**:
 * **Interactive Notebook:** [`VANET_Misbehavior_Detection_Colab.ipynb`](VANET_Misbehavior_Detection_Colab.ipynb)
-* **Outputs Generated:** `best_model.joblib` (exported directly to `backend/models/` for FastAPI serving)
+* **Outputs Generated:** `best_model.joblib` and `scaler.pkl` (exported directly to `backend/models/` for FastAPI serving)
 
 ---
 
