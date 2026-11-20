@@ -9,18 +9,18 @@ class ApiEndpoints {
   static const String vehicles = "/vehicles";
 
   // Predictions & XAI Endpoints
-  static const String checkTelemetry = "/predictions/check";
-  static const String getExplanation = "/predictions"; // Append: /{id}/explanation
+  static const String checkTelemetry = "/prediction/analyze";
+  static const String getExplanation = "/xai/explanation"; // Append: /{id}
 
   // Trust Endpoints
-  static const String trustScore = "/trust"; // Append: /{id}/score
+  static const String trustScore = "/trust"; // Append: /{id}
 
   // Emergency Priority Endpoints
-  static const String authorizeEmergency = "/emergency/authorize";
-  static const String requestPriority = "/emergency/request-priority";
+  static const String authorizeEmergency = "/emergency/register";
+  static const String requestPriority = "/emergency/verify";
 
   // Routes Endpoints
-  static const String routes = "/routes";
+  static const String routes = "/routing/recommend";
 
   // Reports Endpoints
   static const String reports = "/reports";

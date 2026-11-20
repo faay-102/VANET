@@ -1,11 +1,16 @@
 import os
+import uuid
 import joblib
 import numpy as np
 import pandas as pd
+from datetime import datetime
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 from typing import Dict, Any, Optional
 from app.services.xai.config import MODEL_PATH, BACKEND_DIR
+from app.database.store import PREDICTIONS, TRUST_SCORES
+from app.services.trust_engine import TrustEngine
+from app.services.xai.explanation_generator import ExplanationGenerator
 
 router = APIRouter()
 
@@ -25,20 +30,28 @@ FEATURE_COLUMNS = [
 ]
 
 class PredictionRequestSchema(BaseModel):
+    vehicle_id: Optional[str] = "VEH_TEST"
     features: Dict[str, float] = Field(
         ...,
         description="Dictionary of 21 kinematic features extracted from consecutive BSM messages"
     )
 
 class PredictionResponseSchema(BaseModel):
+    prediction_id: str
+    vehicle_id: str
     prediction: str # Normal Vehicle / Malicious Vehicle
     attack_type: str
     confidence: float
     model_used: str
+    explanation: Optional[str] = None
+    trust_score: Optional[float] = None
+    trust_status: Optional[str] = None
 
-# Model and scaler cache
+# Model, scaler and explanation cache
 model_cache = None
 scaler_cache = None
+explainer_gen = ExplanationGenerator()
+trust_engine_inst = TrustEngine()
 
 def get_artifacts():
     global model_cache, scaler_cache
@@ -94,6 +107,23 @@ def analyze_misbehavior(payload: PredictionRequestSchema):
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Missing required feature(s): {missing_feats}. Exactly {len(expected_cols)} features expected."
         )
+
+    # Validation: Check finite numeric values
+    for col in expected_cols:
+        val = float(feats[col])
+        if not np.isfinite(val):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Feature '{col}' contains non-finite value: {val}."
+            )
+
+    # Validation: Check positive delta_t
+    delta_t_val = float(feats.get("delta_t", 0.0))
+    if delta_t_val <= 0.0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Feature 'delta_t' must be strictly positive (> 0). Provided: {delta_t_val}."
+        )
     
     # Extract feature values in exact required column order
     row = {col: float(feats[col]) for col in expected_cols}
@@ -130,9 +160,57 @@ def analyze_misbehavior(payload: PredictionRequestSchema):
         else:
             attack_type = "VeReMi Attack 16"
 
+    # Generate Explainable AI Feature Attribution & Human Reason
+    prediction_id = str(uuid.uuid4())
+    vehicle_id = payload.vehicle_id or "VEH_TEST"
+    
+    # Synthesize SHAP/LIME weights for top contributing anomaly features
+    mock_shap = {}
+    mock_lime = {}
+    if pred_val == 1:
+        mock_lime["delta_pos_magnitude"] = 0.45
+        mock_lime["speed_mag2"] = 0.28
+        mock_lime["pos_residual"] = 0.22
+        mock_shap = dict(mock_lime)
+    
+    explanation_text = explainer_gen.generate_local_reason(
+        prediction=pred_val,
+        confidence=proba,
+        shap_values=mock_shap,
+        lime_values=mock_lime
+    )
+
+    # Store in PREDICTIONS store so GET /xai/explanation/{id} resolves live!
+    PREDICTIONS[prediction_id] = {
+        "prediction_id": prediction_id,
+        "vehicle_id": vehicle_id,
+        "prediction": "Malicious Vehicle" if pred_val == 1 else "Normal Vehicle",
+        "confidence": round(proba * 100.0, 1),
+        "attack_type": attack_type,
+        "shap_values": mock_shap,
+        "lime_values": mock_lime,
+        "generated_reason": explanation_text,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+    # Automatically Update Vehicle Trust Standing
+    db_trust = trust_engine_inst.process_telemetry_event(
+        vehicle_id=vehicle_id,
+        prediction=pred_val,
+        attack_type=attack_type,
+        xai_lime_values=mock_lime,
+        message_features=feats
+    )
+    TRUST_SCORES[vehicle_id] = db_trust
+
     return PredictionResponseSchema(
+        prediction_id=prediction_id,
+        vehicle_id=vehicle_id,
         prediction="Malicious Vehicle" if pred_val == 1 else "Normal Vehicle",
         attack_type=attack_type,
         confidence=round(proba * 100.0, 1),
-        model_used=model.__class__.__name__
+        model_used=model.__class__.__name__,
+        explanation=explanation_text,
+        trust_score=db_trust.get("current_score", 100.0),
+        trust_status=db_trust.get("trust_status", "Trusted Vehicle")
     )

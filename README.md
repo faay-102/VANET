@@ -142,11 +142,11 @@ sequenceDiagram
     participant ML as XGBoost Classifier
     participant TS as Trust Score DB
 
-    V->>API: POST /messages/ (Telemetry coordinates, speed)
-    API->>ML: Run predict_proba() inference
+    V->>API: POST /prediction/analyze (21 BSM Kinematic features)
+    API->>ML: Run predict_proba() inference with StandardScaler
     ML-->>API: Malicious/Normal prediction output
-    API->>TS: Penalize or recover trust score
-    API-->>V: Return threat prediction and trust score
+    API->>TS: Update dynamic trust composite score
+    API-->>V: Return threat prediction, explanation ID, and trust score
 ```
 
 ### AI Explanation Sequence Flow

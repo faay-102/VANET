@@ -20,7 +20,8 @@ api_router.include_router(health_router, tags=["Health Diagnostics"])
 # Core modules
 api_router.include_router(auth_router, prefix="/auth", tags=["Authentication"])
 api_router.include_router(vehicles_router, prefix="/vehicles", tags=["Vehicles"])
-api_router.include_router(messages_router, prefix="/messages", tags=["Messages"])
+# Note: Legacy /messages prototype router replaced by production /prediction/analyze
+# api_router.include_router(messages_router, prefix="/messages", tags=["Messages"])
 api_router.include_router(prediction_router, prefix="/prediction", tags=["Predictions"])
 api_router.include_router(xai_router, prefix="/xai", tags=["Explainable AI"])
 api_router.include_router(trust_router, prefix="/trust", tags=["Trust Management"])
