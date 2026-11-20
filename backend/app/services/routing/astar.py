@@ -1,20 +1,21 @@
 import networkx as nx
 from typing import List, Dict, Any, Tuple
-from app.services.routing.route_config import NODE_COORDINATES
+from app.services.routing.route_config import NODE_COORDINATES, WEIGHT_DISTANCE
 
 class AStarPathfinder:
     """
     Finds the shortest/least-cost path using the A* algorithm
-    with Euclidean distance heuristic.
+    with Euclidean distance heuristic scaled by distance weight for admissibility.
     """
     def heuristic(self, u: str, v: str) -> float:
-        """Heuristic function evaluating physical straight-line distance to destination."""
+        """Admissible heuristic function evaluating scaled straight-line distance to destination."""
         if u not in NODE_COORDINATES or v not in NODE_COORDINATES:
             return 0.0
         
         ux, uy = NODE_COORDINATES[u]
         vx, vy = NODE_COORDINATES[v]
-        return ((ux - vx) ** 2 + (uy - vy) ** 2) ** 0.5
+        euclidean = ((ux - vx) ** 2 + (uy - vy) ** 2) ** 0.5
+        return WEIGHT_DISTANCE * euclidean
 
     def find_route(self, graph: nx.Graph, source: str, target: str) -> Tuple[List[str], float, float]:
         """

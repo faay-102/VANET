@@ -201,23 +201,47 @@ sequenceDiagram
 ### Machine Learning Classification Results
 Evaluated on authentic public VeReMi Attack 16 (*EventualStop / Position Falsification*) traces (4,000 sampled message pairs, 80/20 stratified split, 21 physical kinematic features):
 
-| Model | Accuracy | Precision | Recall | F1 Score | ROC-AUC | Notes |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **LightGBM** | **97.8%** | 98.1% | **93.5%** | **95.8%** | **0.997** | Fast histogram tree growth; top recall |
-| **CatBoost** | **97.8%** | 99.0% | 92.6% | 95.7% | **0.997** | Symmetric oblivious decision trees |
-| **XGBoost** *(Deployed)* | **97.2%** | 97.6% | 92.2% | 94.8% | **0.997** | **Selected for FastAPI serving & SHAP explainability** |
-| **Random Forest** | 96.0% | **100.0%** | 85.3% | 92.0% | 0.996 | Bagging baseline; zero false positives |
-| **GRU** | 91.5% | **100.0%** | 68.7% | 81.4% | 0.978 | Recurrent benchmark ($T=1$ per-packet tensor) |
-| **LSTM** | 91.0% | **100.0%** | 66.8% | 80.1% | 0.975 | Recurrent benchmark ($T=1$ per-packet tensor) |
+| Model | Accuracy | Precision | Recall | F1 Score | ROC-AUC | Avg. Precision | Notes |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **LightGBM** | **97.8%** | 98.1% | **93.5%** | **95.8%** | **0.997** | **0.993** | Fast histogram tree growth; top recall |
+| **CatBoost** | **97.8%** | 99.0% | 92.6% | 95.7% | **0.997** | **0.993** | Symmetric oblivious decision trees |
+| **XGBoost** *(Deployed)* | **97.2%** | 97.6% | 92.2% | 94.8% | **0.997** | 0.992 | **Selected for FastAPI serving & mature SHAP support** |
+| **Random Forest** | 96.0% | **100.0%** | 85.3% | 92.0% | 0.996 | 0.991 | Bagging baseline; zero false positives |
+| **GRU** | 91.2% | **100.0%** | 67.7% | 80.8% | 0.977 | 0.951 | Recurrent benchmark ($T=1$ per-packet tensor, 5 epochs) |
+| **LSTM** | 90.2% | **100.0%** | 64.1% | 78.1% | 0.973 | 0.945 | Recurrent benchmark ($T=1$ per-packet tensor, 5 epochs) |
 
-> **Key Observations:**
-> 1. All three boosting models (LightGBM, CatBoost, XGBoost) demonstrate comparable performance within a 0.6% margin (~5 test samples).
-> 2. XGBoost confusion matrix (583 Normal, 217 Malicious): ~578 true normal (0.9% false alarms), ~200 detected attacks, ~17 missed attacks.
-> 3. SHAP Feature Importance: Actual displacement (`delta_pos_magnitude`, mean abs SHAP = 5.83) dominates decision trees, followed by `speed_mag2` (0.89) and dead-reckoning residual `pos_residual` (0.87), capturing the *EventualStop* attack signature where claimed speed contradicts zero position displacement.
+> **Key Observations & Honest Error Analysis:**
+> 1. **Boosting Parity:** All three gradient boosting models (LightGBM, CatBoost, XGBoost) demonstrate comparable performance within a 0.6% margin (~5 test samples out of 800).
+> 2. **XGBoost Confusion Matrix (583 Normal, 217 Malicious):** 578 true normal (0.9% false alarms), 200 detected attacks, 17 missed attacks.
+> 3. **Stationary Vehicles Error Clustering:** All 22 classification errors (5 false alarms + 17 missed attacks) occur exclusively on stationary vehicles reporting near-zero speed:
+>    - **Stationary Normal (110 vehicles):** 5 false alarms (95.5% precision on stationary)
+>    - **Stationary Attacks (40 vehicles):** 17 missed attacks (57.5% recall on stationary)
+>    - **Moving Vehicles (650 vehicles):** **0 errors (100% Accuracy on moving fleet)**
+> 4. **SHAP Feature Importance:** Physical displacement (`delta_pos_magnitude`, mean abs SHAP = 5.83) strongly dominates decisions, followed by `speed_mag2` (0.89), dead-reckoning residual `pos_residual` (0.87), and speed delta `delta_spd_magnitude` (0.54). Reporting positive speed while displacement remains zero drives predictions strongly towards the malicious class (+2 to +3 log-odds).
 
-### Path Routing Execution Latencies
-*   **A* Search Solver**: `192,500 ns` (3.3x faster due to spatial Euclidean heuristics).
-*   **Dijkstra's Solver**: `649,400 ns`.
+### Path Routing & Detour Execution Benchmarks
+*   **Primary Path Routing Engine:** Dijkstra's algorithm computes the active recommended detour path.
+*   **A* Heuristic Admissibility:** The spatial Euclidean distance heuristic is scaled by the distance cost coefficient (`WEIGHT_DISTANCE = 0.40`) to ensure strict admissibility ($h(u, v) \le h^*(u, v)$) across all 30 network node pairs.
+*   **Warm Execution Latency (6-Node Grid, 2,000 Iterations Median):**
+    *   **Dijkstra's Pathfinder:** `~5.3 µs`
+    *   **A* Pathfinder:** `~4.8 µs` (~1.1x speedup on small localized road network)
+
+### Dynamic Trust Engine Dynamics
+*   **Trust Scale & Status Mapping:** Continuous score from 0.0 to 100.0 (`INITIAL_TRUST = 100.0`).
+    *   $\ge 80.0$: **Trusted Vehicle**
+    *   $40.0 - 79.9$: **Suspicious Vehicle**
+    *   $< 40.0$: **Untrusted Vehicle**
+*   **Composite Formula:**
+    $$\text{Trust} = 0.40 \times \text{Direct} + 0.30 \times \text{History} + 0.20 \times \text{Communication} + 0.10 \times \text{XAI}$$
+*   **Rapid Normal Recovery Dynamics:** When clean messages resume, Direct, Communication, and XAI components reset to 100.0 ($40 + 20 + 10 = 70.0$ baseline), producing rapid recovery:
+    $$\text{Composite} = 0.30 \times (\text{Previous} + 2.0) + 70.0$$
+    *(e.g., a suspicious vehicle at 57.5 recovers to 87.85 on the first normal packet; repeated attack scenario `VEH_CASE_3` bottoms out at 34.5 before recovering to 80.95).*
+
+### Emergency Vehicle Priority & Authentication
+*   **Simulated Authentication:** Deterministic authorization token verification (`AUTH_EMERGENCY_<TYPE>_<vehicle_id>`) with digital identity length check.
+*   **Preemption Gate:** Vehicles with trust $< 40.0$ fail verification as suspicious claims; a 50-point penalty is calculated and dispatched via notifications.
+*   **Composite Priority Formula:**
+    $$\text{Priority Score} = 0.40 \times \text{Vehicle Type} + 0.30 \times \text{Trust Score} + 0.20 \times \text{Accident Severity} + 0.10 \times \text{Traffic Conditions}$$
 
 ---
 
@@ -253,7 +277,7 @@ All machine learning model training, comparative benchmarking (XGBoost, CatBoost
 ---
 
 ### Backend Services & Simulation Pipelines
-The FastAPI backend serves the trained model (`backend/models/best_model.joblib`) for sub-millisecond real-time vehicle telemetry scoring:
+The FastAPI backend serves the trained model (`backend/models/best_model.joblib`) via the `/prediction/analyze` endpoint (enforcing exact 21-feature input schemas and `StandardScaler` transformations) along with modular simulation scripts:
 
 | Task | Command (Run inside `backend/`) | Outputs Generated |
 | :--- | :--- | :--- |
@@ -301,20 +325,22 @@ flutter test
         flutter run -d chrome
         ```
 
+> **Note on Client Presentation:** The Flutter client features a self-contained interactive state provider (`dashboard_provider.dart` with vehicles `V-101` to `V-404`) allowing standalone UI evaluation and offline defense presentations.
+
 ---
 
 ## 8. REST API Endpoints Overview
 
 | Category | Method | Endpoint | Description |
 | :--- | :--- | :--- | :--- |
-| **Misbehavior ML** | `POST` | `/api/v1/ml/predict` | Analyzes kinematics and flags attacks (False Speed, Pos, Sybil, DoS) |
-| **Explainable AI** | `POST` | `/api/v1/xai/explain` | Generates local SHAP waterfall & LIME surrogate explanations |
-| **Trust Management** | `POST` | `/api/v1/trust/update` | Calculates dynamic trust score and updates vehicle penalty standing |
-| **Trust Management** | `GET` | `/api/v1/trust/{vehicle_id}` | Retrieves trust score history, attack logs, and classification status |
+| **Misbehavior ML** | `POST` | `/api/v1/prediction/analyze` | Evaluates 21 BSM kinematic features via StandardScaler + XGBoost |
+| **Explainable AI** | `GET` | `/api/v1/xai/explanation/{id}` | Retrieves local SHAP feature weights, LIME surrogates, and natural language reasons |
+| **Trust Management** | `POST` | `/api/v1/trust/update` | Calculates dynamic trust composite score and updates penalty standing |
+| **Trust Management** | `GET` | `/api/v1/trust/{vehicle_id}` | Retrieves vehicle trust score history, attack logs, and classification status |
 | **Emergency Priority** | `POST` | `/api/v1/emergency/register` | Registers emergency fleet vehicle (Ambulance, Police, Fire, Rescue) |
-| **Emergency Priority** | `POST` | `/api/v1/emergency/verify` | Authenticates emergency claim and assigns dynamic priority level |
-| **Route Detour** | `POST` | `/api/v1/routing/accidents/` | Registers traffic hazard / accident zone and notifies nearby vehicles |
-| **Route Detour** | `POST` | `/api/v1/routing/recommend` | Computes optimal detour route avoiding accidents via A* heuristics |
-| **Fleet Reports** | `GET` | `/api/v1/reports/security` | Aggregated security statistics and emergency event logs |
-| **Fleet Analytics** | `GET` | `/api/v1/analytics/dashboard` | High-level fleet metrics (total, malicious, trusted, emergency) |
-| **Real-time Feed** | `WS` | `/ws/telemetry` | WebSocket stream for live vehicle telemetry and instant alert broadcast |
+| **Emergency Priority** | `POST` | `/api/v1/emergency/verify` | Authenticates emergency claims and checks vehicle trust standing |
+| **Emergency Priority** | `POST` | `/api/v1/emergency/alert` | Generates prioritized alert dispatch with dynamic priority scoring |
+| **Route Detour** | `POST` | `/api/v1/routing/accident` | Registers traffic hazard / accident blockage on road network |
+| **Route Detour** | `POST` | `/api/v1/routing/recommend` | Computes congestion/accident-avoiding detour using Dijkstra pathfinder |
+| **Fleet Reports** | `GET` | `/api/v1/reports/trust` | Aggregated security trust distributions and vehicle rankings |
+| **Notifications** | `POST` | `/api/v1/notifications/register-token` | Registers client FCM device tokens for real-time mobile push alerts |

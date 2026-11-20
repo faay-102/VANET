@@ -52,17 +52,27 @@ class ExplanationGenerator:
         # Translate feature columns into semantic descriptions
         phrases = []
         for feat_name, _ in top_factors:
-            # Customized descriptions for attack scenarios
-            if feat_name in ["position_anomaly_score", "GPS_consistency"]:
-                phrases.append("inconsistent GPS movement")
-            elif feat_name in ["speed_anomaly_score", "speed_change_rate"]:
-                phrases.append("abnormal speed changes")
+            # Customized descriptions for VeReMi 21 kinematic features & attack scenarios
+            if feat_name in ["pos_residual", "position_anomaly_score", "GPS_consistency"]:
+                phrases.append("dead-reckoning position mismatch (claimed vs expected physical location)")
+            elif feat_name in ["delta_pos_magnitude", "distance_difference"]:
+                phrases.append("frozen physical displacement despite reported movement")
+            elif feat_name in ["speed_mag1", "speed_mag2", "speed_anomaly_score", "speed_change_rate"]:
+                phrases.append("abnormal vehicle velocity telemetry")
+            elif feat_name in ["acceleration_magnitude", "acceleration_anomaly", "acceleration"]:
+                phrases.append("abnormal kinematic acceleration patterns")
+            elif feat_name in ["delta_spd_magnitude", "delta_spd_x", "delta_spd_y"]:
+                phrases.append("sharp speed variations across consecutive packets")
+            elif feat_name in ["pos_x1", "pos_y1", "pos_x2", "pos_y2"]:
+                phrases.append("unrealistic spatial coordinate discrepancies in BSM trajectory")
+            elif feat_name in ["spd_x1", "spd_y1", "spd_x2", "spd_y2"]:
+                phrases.append("unrealistic directional velocity components")
+            elif feat_name in ["heading_angle1", "heading_angle2"]:
+                phrases.append("irregular heading trajectory angle")
+            elif feat_name in ["delta_t"]:
+                phrases.append("irregular inter-packet arrival time intervals")
             elif feat_name in ["message_frequency", "message_frequency_anomaly"]:
                 phrases.append("unusually high communication frequency")
-            elif feat_name in ["acceleration_anomaly", "acceleration"]:
-                phrases.append("abnormal acceleration patterns")
-            elif feat_name == "trajectory_deviation":
-                phrases.append("suspicious movement trajectories")
             else:
                 phrases.append(self.interpreter.interpret(feat_name).lower())
 

@@ -64,6 +64,11 @@ def get_artifacts():
 
     return model_cache, scaler_cache
 
+def get_model():
+    """Convenience alias for legacy callers."""
+    model, _ = get_artifacts()
+    return model
+
 @router.post("/analyze", response_model=PredictionResponseSchema)
 def analyze_misbehavior(payload: PredictionRequestSchema):
     model, scaler = get_artifacts()

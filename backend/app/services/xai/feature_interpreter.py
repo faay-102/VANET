@@ -2,6 +2,30 @@ from typing import Dict
 
 # Semantic mappings of raw feature names to human-comprehensible descriptions
 FEATURE_SEMANTIC_MAP: Dict[str, str] = {
+    # 21 Authentic VeReMi Kinematic Features
+    "pos_residual": "Dead-reckoning position residual (claimed vs expected physical location)",
+    "delta_pos_magnitude": "Actual physical displacement between consecutive BSM messages",
+    "delta_pos_x": "X-axis displacement delta",
+    "delta_pos_y": "Y-axis displacement delta",
+    "speed_mag1": "Initial BSM total velocity magnitude",
+    "speed_mag2": "Current BSM total velocity magnitude",
+    "delta_spd_magnitude": "Speed variation magnitude between messages",
+    "delta_spd_x": "X-axis velocity variation delta",
+    "delta_spd_y": "Y-axis velocity variation delta",
+    "acceleration_magnitude": "Derived kinematic acceleration magnitude",
+    "delta_t": "Time interval between consecutive BSM packets",
+    "heading_angle1": "Initial vehicle travel heading angle",
+    "heading_angle2": "Current vehicle travel heading angle",
+    "pos_x1": "Initial BSM reported X position",
+    "pos_y1": "Initial BSM reported Y position",
+    "pos_x2": "Current BSM reported X position",
+    "pos_y2": "Current BSM reported Y position",
+    "spd_x1": "Initial BSM reported X velocity",
+    "spd_y1": "Initial BSM reported Y velocity",
+    "spd_x2": "Current BSM reported X velocity",
+    "spd_y2": "Current BSM reported Y velocity",
+
+    # Legacy / Mock features support
     "speed": "Reported vehicle velocity",
     "acceleration": "Reported acceleration",
     "heading": "Reported heading",

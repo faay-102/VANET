@@ -14,7 +14,7 @@ echo.
 echo =========================================================
 echo   [2/3] Committing changes...
 echo =========================================================
-git commit -m "feat(ml): update pipeline to 21 authentic VeReMi kinematic features and enforce strict scaler validation in backend"
+git commit -m "docs: align README with viva guide, fix A* heuristic admissibility, and update endpoint specifications"
 
 echo.
 echo =========================================================

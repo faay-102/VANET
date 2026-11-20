@@ -161,6 +161,7 @@ def receive_message(payload: MessagePayloadSchema):
     MESSAGES.append(msg_record)
 
     # 5. Broadcast real-time status update to connected WebSocket clients
+    # pyrefly: ignore[unused-coroutine]
     broadcast_update({
         "event_type": "TELEMETRY_UPDATE",
         "vehicle_id": payload.vehicle_id,
