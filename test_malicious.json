@@ -1,0 +1,25 @@
+{
+  "features": {
+    "pos_x1": 2328.193474,
+    "pos_y1": 5564.236926,
+    "spd_x1": 8.171723,
+    "spd_y1": -2.058686,
+    "pos_x2": 2328.193474,
+    "pos_y2": 5564.236926,
+    "spd_x2": 10.085787,
+    "spd_y2": -2.467211,
+    "speed_mag1": 8.427054,
+    "speed_mag2": 10.38317,
+    "delta_t": 1.0,
+    "delta_pos_x": 0.0,
+    "delta_pos_y": 0.0,
+    "delta_pos_magnitude": 0.0,
+    "delta_spd_x": 1.914064,
+    "delta_spd_y": -0.408525,
+    "delta_spd_magnitude": 1.957175,
+    "acceleration_magnitude": 1.957175,
+    "heading_angle1": -0.246792,
+    "heading_angle2": -0.239911,
+    "pos_residual": 8.427054
+  }
+}

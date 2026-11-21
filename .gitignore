@@ -74,7 +74,4 @@ Thumbs.db
 backend/trust_history/SMOKE_*
 backend/trust_history/TEST_*
 backend/models/*backup*
-smoke_test.py
-test_malicious.json
-test_normal.json
 /VANET_Misbehavior_Detection_Colab.ipynb

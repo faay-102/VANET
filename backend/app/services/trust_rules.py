@@ -7,7 +7,10 @@ ATTACK_SEVERITY_LEVELS: Dict[str, str] = {
     "position_anomaly": "MEDIUM",
     "DoS": "HIGH",
     "Sybil": "HIGH",
-    "fake_emergency": "HIGH"
+    "fake_emergency": "HIGH",
+    "EventualStop (Position Falsification)": "MEDIUM",
+    "Kinematic Anomaly (Abnormal Acceleration)": "MEDIUM",
+    "VeReMi Attack 16": "MEDIUM"
 }
 
 # Penalty scores per severity

@@ -10,6 +10,11 @@ git add backend/app/services/
 git add backend/models/best_model.joblib
 git add backend/models/scaler.pkl
 git add backend/make_matching_scaler.py
+git add backend/requirements.txt
+git add requirements.txt
+git add smoke_test.py
+git add test_malicious.json
+git add test_normal.json
 git add frontend/lib/core/constants/api_endpoints.dart
 git add README.md
 git add .gitignore
@@ -22,6 +27,14 @@ echo   [1.5/3] Inspecting Staged Changes (Status and Diff Stat)...
 echo =========================================================
 git status --short
 git --no-pager diff --cached --stat
+
+echo.
+echo =========================================================
+echo   [CHECKPOINT] Please review the staged files above.
+echo   Press any key to PROCEED with commit and push,
+echo   or press Ctrl+C to abort and inspect.
+echo =========================================================
+pause
 
 echo.
 echo =========================================================

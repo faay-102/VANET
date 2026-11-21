@@ -1,5 +1,6 @@
 from typing import Dict, Any, List
 from app.services.xai.feature_interpreter import FeatureInterpreter
+from app.services.xai.config import LIME_MIN_WEIGHT_THRESHOLD
 
 class ExplanationGenerator:
     """
@@ -27,7 +28,7 @@ class ExplanationGenerator:
         # Combine SHAP and LIME to select the most significant contributors
         contributing_factors = []
         for feature, val in lime_values.items():
-            if val > 0.01: # Filter trace noise contributions
+            if val > LIME_MIN_WEIGHT_THRESHOLD: # Filter trace noise contributions
                 contributing_factors.append((feature, val))
 
         # Sort by weight contribution desc

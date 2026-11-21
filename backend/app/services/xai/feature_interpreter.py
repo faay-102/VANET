@@ -62,3 +62,7 @@ class FeatureInterpreter:
         Retrieves human-readable description for a raw feature column name.
         """
         return self.semantic_map.get(feature_name, f"Feature ({feature_name})")
+
+    def interpret_feature_name(self, feature_name: str) -> str:
+        """Alias for interpret to ensure backwards and forwards compatibility."""
+        return self.interpret(feature_name)

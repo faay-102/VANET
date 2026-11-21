@@ -27,4 +27,4 @@ os.makedirs(MODEL_PATH.parent, exist_ok=True)
 
 # Feature importance filtering configurations
 FEATURE_IMPORTANCE_LIMIT = 5
-LIME_MIN_WEIGHT_THRESHOLD = 0.05
+LIME_MIN_WEIGHT_THRESHOLD = 0.01
