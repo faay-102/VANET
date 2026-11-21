@@ -51,7 +51,8 @@ class RouteOptimizer:
         vehicle_id: str, 
         source: str, 
         destination: str, 
-        accident_roads: List[str] = None
+        accident_roads: List[str] = None,
+        vehicle_type: str = "Standard"
     ) -> Dict[str, Any]:
         """
         Executes path calculations, updates blockages, benchmarks algos, and maps
@@ -62,8 +63,12 @@ class RouteOptimizer:
             for road in accident_roads:
                 self.accident_analyzer.register_accident_on_road(self.graph, road)
 
-        # 2. Recalculate edge costs
-        self.scorer.apply_costs_to_graph(self.graph)
+        # 2. Recalculate edge costs with vehicle type priority
+        self.scorer.apply_costs_to_graph(self.graph, vehicle_type=vehicle_type)
+
+        # Warm up both pathfinders to eliminate JIT/first-call memory allocation skew
+        self.dijkstra.find_route(self.graph, source, destination)
+        self.astar.find_route(self.graph, source, destination)
 
         # 3. Profile Dijkstra path finder
         t0 = time.perf_counter_ns()
@@ -97,12 +102,24 @@ class RouteOptimizer:
         alt_path = self.get_alternative_route(source, destination, d_path)
 
         # 7. Generate reason description
-        congested_edges = [self.graph[d_path[i]][d_path[i+1]].get("road_id") for i in range(len(d_path)-1) if self.graph[d_path[i]][d_path[i+1]].get("traffic_density", 0.0) >= 70.0]
+        chosen_edges = {tuple(sorted([d_path[i], d_path[i+1]])) for i in range(len(d_path)-1)}
+        candidate_nodes = set(d_path).union(set(alt_path))
+        bypassed_congested = []
+        traveling_congested = []
+        for u, v, attrs in self.graph.edges(data=True):
+            edge_id = attrs.get("road_id", f"ROAD_{u}{v}")
+            if attrs.get("traffic_density", 0.0) >= 70.0:
+                if tuple(sorted([u, v])) in chosen_edges:
+                    traveling_congested.append(edge_id)
+                elif u in candidate_nodes and v in candidate_nodes:
+                    bypassed_congested.append(edge_id)
         
         if accident_roads:
             reason = f"Detoured to avoid active accident zones on: {', '.join(accident_roads)}."
-        elif congested_edges:
-            reason = f"Optimal route selected bypassing heavy traffic on: {', '.join(congested_edges)}."
+        elif bypassed_congested:
+            reason = f"Optimal route selected bypassing heavy traffic on: {', '.join(bypassed_congested)}."
+        elif traveling_congested:
+            reason = f"Direct route selected with expected delays on congested road: {', '.join(traveling_congested)}."
         else:
             reason = "Shortest route selected based on low congestion and open status."
 

@@ -1,7 +1,6 @@
 from fastapi import APIRouter
 from app.routes.auth import router as auth_router
 from app.routes.vehicles import router as vehicles_router
-from app.routes.messages import router as messages_router
 from app.routes.predictions import router as prediction_router
 from app.routes.explanations import router as xai_router
 from app.routes.trust import router as trust_router
@@ -26,7 +25,6 @@ api_router.include_router(prediction_router, prefix="/prediction", tags=["Predic
 api_router.include_router(xai_router, prefix="/xai", tags=["Explainable AI"])
 api_router.include_router(trust_router, prefix="/trust", tags=["Trust Management"])
 api_router.include_router(emergency_router, prefix="/emergency", tags=["Emergency Priority"])
-api_router.include_router(routing_router, tags=["Routing & Accidents"])
 api_router.include_router(routing_router, prefix="/routing", tags=["Routing & Accidents"])
 api_router.include_router(reports_router, prefix="/reports", tags=["Reports"])
 api_router.include_router(analytics_router, prefix="/analytics", tags=["Analytics"])

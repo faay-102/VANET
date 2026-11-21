@@ -67,3 +67,12 @@ app.*.map.json
 *~
 .DS_Store
 Thumbs.db
+
+# Secrets & Transient logs
+*serviceAccountKey*.json
+backend/trust_history/SMOKE_*
+backend/trust_history/TEST_*
+smoke_test.py
+test_malicious.json
+test_normal.json
+/VANET_Misbehavior_Detection_Colab.ipynb

@@ -243,6 +243,15 @@ Evaluated on authentic public VeReMi Attack 16 (*EventualStop / Position Falsifi
 *   **Composite Priority Formula:**
     $$\text{Priority Score} = 0.40 \times \text{Vehicle Type} + 0.30 \times \text{Trust Score} + 0.20 \times \text{Accident Severity} + 0.10 \times \text{Traffic Conditions}$$
 
+### Known Architectural Limitations & Security Defense Analysis
+1. **Trust Poisoning Vulnerability (Absence of IEEE 1609.2 Cryptographic Frame Signing):**
+   * *Observation:* In open V2X broadcast architectures without hardware HSM or IEEE 1609.2 PKI digital signatures, an attacker can broadcast fake emergency claims (`/emergency/verify`) using an arbitrary victim vehicle ID.
+   * *Impact:* A single spoofed fake claim drops a fresh victim vehicle's trust score to **55.0**, and subsequent fake claims bottom out at the **40.0** floor (the maximum history penalty bound).
+   * *Defense / Mitigation:* In production C-V2X (3GPP Rel 14/15) and DSRC implementations, emergency frames require asymmetric ECDSA digital signatures signed by a certified SCMS (Security Credential Management System) Certificate Authority, ensuring unauthenticated or spoofed frames are dropped at Layer 2/3 before ingestion by the trust engine.
+2. **Dynamic Routing Vehicle-Type Weighting & Traffic Bypass Detection:**
+   * Detour route optimization incorporates `vehicle_type` into edge cost evaluation, granting emergency vehicles (e.g. Ambulance, Fire Brigade) corridor speed clearance and reduced congestion cost penalties.
+   * Path reason generation dynamically identifies network segments with $\ge 70\%$ traffic density that were bypassed (e.g., bypassing `ROAD_BC` at 80% density via path `A -> D -> C -> F`), completely separating accident blockages from traffic congestion notifications.
+
 ---
 
 ## 7. Setup & Offline Execution Guide

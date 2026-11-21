@@ -47,14 +47,15 @@ class PredictionResponseSchema(BaseModel):
     trust_score: Optional[float] = None
     trust_status: Optional[str] = None
 
-# Model, scaler and explanation cache
+# Model, scaler, explainer and trust engine cache
 model_cache = None
 scaler_cache = None
+tree_explainer_cache = None
 explainer_gen = ExplanationGenerator()
 trust_engine_inst = TrustEngine()
 
 def get_artifacts():
-    global model_cache, scaler_cache
+    global model_cache, scaler_cache, tree_explainer_cache
     if model_cache is None:
         if not os.path.exists(MODEL_PATH):
             raise HTTPException(
@@ -75,16 +76,24 @@ def get_artifacts():
         except Exception as e:
             print(f"[WARN] Failed loading scaler from '{SCALER_PATH}': {str(e)}")
 
-    return model_cache, scaler_cache
+    if tree_explainer_cache is None and model_cache is not None:
+        try:
+            import shap
+            tree_explainer_cache = shap.TreeExplainer(model_cache)
+        except Exception as e:
+            print(f"[INFO] shap.TreeExplainer not available, using tree attribution: {str(e)}")
+            tree_explainer_cache = None
+
+    return model_cache, scaler_cache, tree_explainer_cache
 
 def get_model():
     """Convenience alias for legacy callers."""
-    model, _ = get_artifacts()
+    model, _, _ = get_artifacts()
     return model
 
 @router.post("/analyze", response_model=PredictionResponseSchema)
 def analyze_misbehavior(payload: PredictionRequestSchema):
-    model, scaler = get_artifacts()
+    model, scaler, tree_explainer = get_artifacts()
     
     # Determine expected columns (from model metadata or standard 21 features)
     if hasattr(model, "feature_names_in_"):
@@ -160,24 +169,42 @@ def analyze_misbehavior(payload: PredictionRequestSchema):
         else:
             attack_type = "VeReMi Attack 16"
 
-    # Generate Explainable AI Feature Attribution & Human Reason
+    # Compute Real SHAP Feature Attributions via TreeExplainer
     prediction_id = str(uuid.uuid4())
     vehicle_id = payload.vehicle_id or "VEH_TEST"
     
-    # Synthesize SHAP/LIME weights for top contributing anomaly features
-    mock_shap = {}
-    mock_lime = {}
-    if pred_val == 1:
-        mock_lime["delta_pos_magnitude"] = 0.45
-        mock_lime["speed_mag2"] = 0.28
-        mock_lime["pos_residual"] = 0.22
-        mock_shap = dict(mock_lime)
+    calculated_shap = {}
+    if tree_explainer is not None:
+        try:
+            raw_shap = tree_explainer.shap_values(X_input)
+            if isinstance(raw_shap, list):
+                raw_shap = raw_shap[1] if len(raw_shap) > 1 else raw_shap[0]
+            elif hasattr(raw_shap, "shape") and len(raw_shap.shape) == 3:
+                raw_shap = raw_shap[:, :, 1]
+            flat_shap = np.array(raw_shap).flatten()
+            for col, val in zip(expected_cols, flat_shap):
+                calculated_shap[col] = round(float(val), 4)
+        except Exception as e:
+            print(f"[WARN] TreeSHAP inference error: {e}")
+
+    # Compute Local Perturbation LIME Sensitivity Weights (dP/dX local gradient surrogate)
+    calculated_lime = {}
+    try:
+        base_malicious_prob = float(model.predict_proba(X_input)[0][1])
+        for idx, col in enumerate(expected_cols):
+            X_pert = X_input.copy()
+            X_pert[0, idx] += 0.1 # Perturb normalized z-score
+            prob_pert = float(model.predict_proba(X_pert)[0][1])
+            # Finite difference local linear coefficient
+            calculated_lime[col] = round(float((prob_pert - base_malicious_prob) / 0.1), 4)
+    except Exception as e:
+        print(f"[WARN] Local LIME perturbation error: {e}")
     
     explanation_text = explainer_gen.generate_local_reason(
         prediction=pred_val,
         confidence=proba,
-        shap_values=mock_shap,
-        lime_values=mock_lime
+        shap_values=calculated_shap,
+        lime_values=calculated_lime
     )
 
     # Store in PREDICTIONS store so GET /xai/explanation/{id} resolves live!
@@ -187,8 +214,8 @@ def analyze_misbehavior(payload: PredictionRequestSchema):
         "prediction": "Malicious Vehicle" if pred_val == 1 else "Normal Vehicle",
         "confidence": round(proba * 100.0, 1),
         "attack_type": attack_type,
-        "shap_values": mock_shap,
-        "lime_values": mock_lime,
+        "shap_values": calculated_shap,
+        "lime_values": calculated_lime,
         "generated_reason": explanation_text,
         "timestamp": datetime.utcnow().isoformat()
     }
@@ -198,7 +225,7 @@ def analyze_misbehavior(payload: PredictionRequestSchema):
         vehicle_id=vehicle_id,
         prediction=pred_val,
         attack_type=attack_type,
-        xai_lime_values=mock_lime,
+        xai_lime_values=calculated_lime,
         message_features=feats
     )
     TRUST_SCORES[vehicle_id] = db_trust

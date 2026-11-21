@@ -32,7 +32,8 @@ def recommend_route(payload: RouteRecommendPayload):
         vehicle_id=payload.vehicle_id,
         source=payload.source,
         destination=payload.destination,
-        accident_roads=blocked_roads
+        accident_roads=blocked_roads,
+        vehicle_type=payload.vehicle_type
     )
 
     if not res.get("recommended_route"):
@@ -41,14 +42,20 @@ def recommend_route(payload: RouteRecommendPayload):
     # Log route request
     ROUTES.append(res)
     
-    # Trigger Traffic Congestion Event notification if detour reason contains congestion info
-    if "traffic" in res["reason"].lower() or "detour" in res["reason"].lower():
+    # Trigger Traffic Congestion Event notification ONLY for genuine traffic congestion (NOT for accident detours)
+    if not blocked_roads and "traffic" in res["reason"].lower():
         from app.services.event_listener import VANETEventListener
         listener = VANETEventListener()
-        listener.on_congestion_detected(
-            road_id="CONGESTED_ROAD_SEGMENT",
-            detour_road=" -> ".join(res["alternative_route"])
-        )
+        congested_road = None
+        for u, v, attrs in optimizer.graph.edges(data=True):
+            if attrs.get("traffic_density", 0.0) >= 70.0:
+                congested_road = attrs.get("road_id", f"ROAD_{u}{v}")
+                break
+        if congested_road:
+            listener.on_congestion_detected(
+                road_id=congested_road,
+                detour_road=" -> ".join(res["recommended_route"])
+            )
 
     return {
         "recommended_route": res["recommended_route"],

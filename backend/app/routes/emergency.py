@@ -77,6 +77,18 @@ def verify_emergency_claim(payload: VerifyClaimPayload):
             trust_reduction=50.0
         )
         
+        # Route penalty through TrustEngine so attack history & penalty persist on disk
+        from app.services.trust_engine import TrustEngine
+        engine = TrustEngine()
+        db_trust = engine.process_telemetry_event(
+            vehicle_id=payload.vehicle_id,
+            prediction=1,
+            attack_type="fake_emergency",
+            xai_lime_values={},
+            message_features={"communication_behavior_score": 5.0}
+        )
+        TRUST_SCORES[payload.vehicle_id] = db_trust
+        
     return {
         "status": res["verification_result"],
         "is_authenticated": (res["status"] == "ACCEPTED"),
