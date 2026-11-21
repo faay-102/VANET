@@ -258,6 +258,7 @@ Evaluated on authentic public VeReMi Attack 16 (*EventualStop / Position Falsifi
 
 ### Prerequisite Environment
 *   **Python**: 3.11+ (Tested on Python 3.13)
+*   **Dependencies**: Run `pip install -r requirements.txt`
 *   **Flutter SDK**: 3.22+ (Tested on Flutter 3.41.7)
 *   **Google Chrome** or **Windows Visual Studio Build Tools** (for desktop/web target)
 
@@ -280,7 +281,7 @@ Evaluated on authentic public VeReMi Attack 16 (*EventualStop / Position Falsifi
 
 ### Machine Learning Training & Model Evaluation (Google Colab)
 All machine learning model training, comparative benchmarking (XGBoost, CatBoost, LightGBM, Random Forest, LSTM, GRU), evaluation metrics (Accuracy %, F1 %, ROC/PR curves), and Explainable AI (SHAP) are conducted interactively in **Google Colab**:
-* **Interactive Notebook:** [`VANET_Misbehavior_Detection_Colab.ipynb`](VANET_Misbehavior_Detection_Colab.ipynb)
+* **Interactive Notebook:** [`colab/VANET_Misbehavior_Detection_Colab.ipynb`](colab/VANET_Misbehavior_Detection_Colab.ipynb)
 * **Outputs Generated:** `best_model.joblib` and `scaler.pkl` (exported directly to `backend/models/` for FastAPI serving)
 
 ---
@@ -299,7 +300,14 @@ The FastAPI backend serves the trained model (`backend/models/best_model.joblib`
 
 ### Executing Automated Test Suites
 
-#### 1. Backend Test Suite (FastAPI, ML, Trust, Routing)
+#### 1. End-to-End One-Shot Smoke Test (FastAPI, ML, SHAP, Trust, Emergency, Routing)
+```bash
+# Run from project root while backend is active on port 8000:
+python smoke_test.py
+```
+*Validates 16/16 automated assertions including preflight health, malicious trust drop (71.0 -> 57.8 -> 50.0), recovery (85.6), TreeSHAP feature attributions (+3.11 delta_pos_magnitude), emergency fake claim penalties (55.0 -> 87.1), and dynamic A* / Dijkstra detour re-routing (A-D-C-F and blocked A-B-C-F).*
+
+#### 2. Backend Pytest Suite (FastAPI, ML, Trust, Routing)
 ```bash
 cd backend
 python -m pytest
@@ -334,7 +342,7 @@ flutter test
         flutter run -d chrome
         ```
 
-> **Note on Client Presentation:** The Flutter client features a self-contained interactive state provider (`dashboard_provider.dart` with vehicles `V-101` to `V-404`) allowing standalone UI evaluation and offline defense presentations.
+> **Note on Client Presentation:** The Flutter client features a self-contained interactive state provider (`dashboard_provider.dart` with vehicles `V-101` to `V-404`) functioning as an **Offline UI Prototype** for standalone UI evaluation and viva presentations (without direct HTTP client dependencies in `pubspec.yaml`). Testing of the ML, XAI, Trust, and Routing pipelines is validated directly against the live FastAPI REST backend via `smoke_test.py`.
 
 ---
 
