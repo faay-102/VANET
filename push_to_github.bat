@@ -7,6 +7,9 @@ echo =========================================================
 git add colab/VANET_Misbehavior_Detection_Colab.ipynb
 git add backend/app/routes/
 git add backend/app/services/
+git add backend/models/best_model.joblib
+git add backend/models/scaler.pkl
+git add backend/make_matching_scaler.py
 git add frontend/lib/core/constants/api_endpoints.dart
 git add README.md
 git add .gitignore
@@ -15,16 +18,16 @@ git add push_to_github.bat
 
 echo.
 echo =========================================================
-echo   [1.5/3] Inspecting Staged Changes (Status & Diff Stat)...
+echo   [1.5/3] Inspecting Staged Changes (Status and Diff Stat)...
 echo =========================================================
 git status --short
-git diff --cached --stat
+git --no-pager diff --cached --stat
 
 echo.
 echo =========================================================
 echo   [2/3] Committing changes...
 echo =========================================================
-git commit -m "feat(core): harden trust engine, emergency routing & XAI; document trust poisoning limitation & update README"
+git commit -m "feat(core): harden trust engine, emergency routing & XAI; sync 21-feature model & scaler; document limitations"
 
 echo.
 echo =========================================================
