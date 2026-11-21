@@ -15,7 +15,7 @@ git add requirements.txt
 git add smoke_test.py
 git add test_malicious.json
 git add test_normal.json
-git add frontend/lib/core/constants/api_endpoints.dart
+git add frontend/lib/
 git add README.md
 git add .gitignore
 git add check_routing.py
